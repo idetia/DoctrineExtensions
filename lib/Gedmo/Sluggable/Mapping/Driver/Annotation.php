@@ -47,7 +47,8 @@ class Annotation implements AnnotationDriverInterface
     private $validTypes = array(
         'string',
         'text',
-        'integer'
+        'integer',
+        'hash'
     );
 
     /**

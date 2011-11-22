@@ -30,7 +30,8 @@ class Xml extends BaseXml
     private $validTypes = array(
         'string',
         'text',
-        'integer'
+        'integer',
+        'hash'
     );
 
     /**
