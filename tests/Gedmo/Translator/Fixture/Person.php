@@ -4,12 +4,10 @@ namespace Translator\Fixture;
 
 use Doctrine\ORM\Mapping as ORM;
 
-use Gedmo\Translator\ObjectTranslator;
 use Doctrine\Common\Collections\ArrayCollection;
 
 /**
  * @ORM\Entity
- * @ORM\HasLifecycleCallbacks
  */
 class Person
 {
@@ -23,12 +21,12 @@ class Person
     /**
      * @ORM\Column(name="name", type="string", length=128)
      */
-    private $name;
+    public $name;
 
     /**
      * @ORM\Column(name="desc", type="string", length=128)
      */
-    private $description;
+    public $description;
 
     public function getId()
     {
@@ -69,39 +67,23 @@ class Person
      * @ORM\OneToMany(targetEntity="PersonTranslation", mappedBy="translatable", cascade={"persist"})
      */
     private $translations;
-    private $translator;
 
     public function __construct()
     {
         $this->translations = new ArrayCollection();
-
-        $this->initializeTranslator();
     }
 
-    /** @ORM\PrePersist */
-    public function translateEntityToDefaultLocale()
+    public function translate($locale = 'en')
     {
-        $this->translator->translate();
-    }
-
-    /** @ORM\PostLoad */
-    public function initializeTranslator()
-    {
-        if (null === $this->translator) {
-            $this->translator = new ObjectTranslator($this,
-            /* List of translatable properties:  */ array('name'),
-            /* Translation entity class:         */ 'Translator\Fixture\PersonTranslation',
-            /* Translations collection property: */ $this->translations
-            );
-
-            return;
+        if ('en' === $locale) {
+            return $this;
         }
 
-        $this->translateEntityToDefaultLocale();
-    }
-
-    public function translate($locale = null)
-    {
-        return $this->translator->translate($locale);
+        return new \Gedmo\Translator\TranslationProxy($this,
+        /* Locale                            */ $locale,
+        /* List of translatable properties:  */ array('name'),
+        /* Translation entity class:         */ 'Translator\Fixture\PersonTranslation',
+        /* Translations collection property: */ $this->translations
+        );
     }
 }

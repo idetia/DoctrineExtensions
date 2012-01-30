@@ -3,7 +3,6 @@
 namespace Gedmo\Sluggable\Mapping\Event\Adapter;
 
 use Gedmo\Mapping\Event\Adapter\ORM as BaseAdapterORM;
-use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 use Doctrine\ORM\Query;
 use Gedmo\Sluggable\Mapping\Event\SluggableAdapter;
 
@@ -22,7 +21,7 @@ final class ORM extends BaseAdapterORM implements SluggableAdapter
     /**
      * {@inheritDoc}
      */
-    public function getSimilarSlugs($object, ClassMetadata $meta, array $config, $slug)
+    public function getSimilarSlugs($object, $meta, array $config, $slug)
     {
         $em = $this->getObjectManager();
         $qb = $em->createQueryBuilder();
@@ -36,7 +35,7 @@ final class ORM extends BaseAdapterORM implements SluggableAdapter
         $entityIdentifiers = $this->extractIdentifier($em, $object, false);
         $parameters = array();
         foreach ((array)$entityIdentifiers as $field => $value) {
-            if (strlen($value)) {
+            if (strlen($value) && !$meta->isIdentifier($config['slug'])) {
                 $qb->andWhere('rec.' . $field . ' <> :' . $field);
                 $parameters[$field] = $value;
             }

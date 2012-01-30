@@ -8,6 +8,7 @@ use Gedmo\Tree\Strategy;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Proxy\Proxy;
 use Gedmo\Tree\TreeListener;
+use Doctrine\ORM\Version;
 
 /**
  * This strategy makes tree act like
@@ -61,6 +62,7 @@ class Closure implements Strategy
     {
         $config = $this->listener->getConfiguration($em, $meta->name);
         $closureMetadata = $em->getClassMetadata($config['closure']);
+        $cmf = $em->getMetadataFactory();
 
         if (!$closureMetadata->hasAssociation('ancestor')) {
             // create ancestor mapping
@@ -84,6 +86,12 @@ class Closure implements Strategy
                 'fetch' => ClassMetadataInfo::FETCH_LAZY
             );
             $closureMetadata->mapManyToOne($ancestorMapping);
+            if (Version::compare('2.3.0-dev') <= 0) {
+                $closureMetadata->reflFields['ancestor'] = $cmf
+                    ->getReflectionService()
+                    ->getAccessibleProperty($closureMetadata->name, 'ancestor')
+                ;
+            }
         }
 
         if (!$closureMetadata->hasAssociation('descendant')) {
@@ -108,6 +116,12 @@ class Closure implements Strategy
                 'fetch' => ClassMetadataInfo::FETCH_LAZY
             );
             $closureMetadata->mapManyToOne($descendantMapping);
+            if (Version::compare('2.3.0-dev') <= 0) {
+                $closureMetadata->reflFields['descendant'] = $cmf
+                    ->getReflectionService()
+                    ->getAccessibleProperty($closureMetadata->name, 'descendant')
+                ;
+            }
         }
         // create unique index on ancestor and descendant
         $indexName = substr(strtoupper("IDX_" . md5($closureMetadata->name)), 0, 20);
@@ -119,7 +133,7 @@ class Closure implements Strategy
         $closureMetadata->table['indexes'][$indexName] = array(
             'columns' => array('depth')
         );
-        if ($cacheDriver = $em->getMetadataFactory()->getCacheDriver()) {
+        if ($cacheDriver = $cmf->getCacheDriver()) {
             $cacheDriver->save($closureMetadata->name."\$CLASSMETADATA", $closureMetadata, null);
         }
     }
@@ -156,6 +170,15 @@ class Closure implements Strategy
     public function processScheduledDelete($em, $entity)
     {}
 
+    protected function getJoinColumnFieldName($association)
+    {
+        if (count($association['joinColumnFieldNames']) > 1) {
+            throw new RuntimeException('More association on field '.$association['fieldName']);
+        }
+
+        return array_shift($association['joinColumnFieldNames']);
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -177,11 +200,16 @@ class Closure implements Strategy
             $closureClass = $config['closure'];
             $closureMeta = $em->getClassMetadata($closureClass);
             $closureTable = $closureMeta->getTableName();
+
+            $ancestorColumnName = $this->getJoinColumnFieldName($em->getClassMetadata($config['closure'])->getAssociationMapping('ancestor'));
+            $descendantColumnName = $this->getJoinColumnFieldName($em->getClassMetadata($config['closure'])->getAssociationMapping('descendant'));
+            $depthColumnName = $em->getClassMetadata($config['closure'])->getColumnName('depth');
+
             $entries = array(
                 array(
-                    'ancestor' => $nodeId,
-                    'descendant' => $nodeId,
-                    'depth' => 0
+                    $ancestorColumnName => $nodeId,
+                    $descendantColumnName => $nodeId,
+                    $depthColumnName => 0
                 )
             );
 
@@ -195,9 +223,9 @@ class Closure implements Strategy
 
                 foreach ($ancestors as $ancestor) {
                     $entries[] = array(
-                        'ancestor' => $ancestor['ancestor']['id'],
-                        'descendant' => $nodeId,
-                        'depth' => $ancestor['depth'] + 1
+                        $ancestorColumnName => $ancestor['ancestor']['id'],
+                        $descendantColumnName => $nodeId,
+                        $depthColumnName => $ancestor['depth'] + 1
                     );
                 }
             }

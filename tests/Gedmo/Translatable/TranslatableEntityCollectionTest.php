@@ -42,17 +42,42 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
         );
         //$this->getMockCustomEntityManager($conn, $evm);
         $this->getMockSqliteEntityManager($evm);
-        $this->populate();
     }
 
-    public function testMultipleTranslationPersistence()
+    /**
+     * @test
+     */
+    function shouldEnsureSolvedIssue234()
     {
+        $this->translatableListener->setTranslatableLocale('de');
+        $this->translatableListener->setDefaultLocale('en');
+        $repo = $this->em->getRepository(self::TRANSLATION);
+        $entity = new Article;
+        $entity->setTitle('he'); // is translated to de
+
+        $repo
+            ->translate($entity, 'title', 'en', 'my article en')
+            ->translate($entity, 'title', 'es', 'my article es')
+            ->translate($entity, 'title', 'fr', 'my article fr')
+            ->translate($entity, 'title', 'de', 'my article de')
+        ;
+
+        $this->em->persist($entity);
+        $this->em->flush();
+    }
+
+    /**
+     * @test
+     */
+    function shouldPersistMultipleTranslations()
+    {
+        $this->populate();
         $repo = $this->em->getRepository(self::TRANSLATION);
         $sport = $this->em->getRepository(self::ARTICLE)->find(1);
         $translations = $repo->findTranslations($sport);
 
         $this->assertEquals(2, count($translations));
-        
+
         $this->assertArrayHasKey('de_de', $translations);
         $this->assertArrayHasKey('title', $translations['de_de']);
         $this->assertArrayHasKey('content', $translations['de_de']);
@@ -66,21 +91,52 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
         $this->assertEquals('content ru', $translations['ru_ru']['content']);
     }
 
-    public function testMultipleTranslationUpdates()
+    /**
+     * @test
+     */
+    function shouldUpdateTranslation()
     {
+        $this->populate();
         $repo = $this->em->getRepository(self::TRANSLATION);
         $sport = $this->em->getRepository(self::ARTICLE)->find(1);
-        $sport->setTitle('Changed');
+        $repo
+            ->translate($sport, 'title', 'ru_ru', 'sport ru change')
+            ->translate($sport, 'content', 'ru_ru', 'content ru change')
+        ;
+        $this->em->flush();
+
+        $translations = $repo->findTranslations($sport);
+        $this->assertEquals(2, count($translations));
+
+        $this->assertArrayHasKey('ru_ru', $translations);
+        $this->assertArrayHasKey('title', $translations['ru_ru']);
+        $this->assertArrayHasKey('content', $translations['ru_ru']);
+        $this->assertEquals('sport ru change', $translations['ru_ru']['title']);
+        $this->assertEquals('content ru change', $translations['ru_ru']['content']);
+    }
+
+    /**
+     * @test
+     */
+    function shouldUpdateMultipleTranslations()
+    {
+        $this->populate();
+        $repo = $this->em->getRepository(self::TRANSLATION);
+        $sport = $this->em->getRepository(self::ARTICLE)->find(1);
         $repo
             ->translate($sport, 'title', 'lt_lt', 'sport lt')
             ->translate($sport, 'content', 'lt_lt', 'content lt')
             ->translate($sport, 'title', 'ru_ru', 'sport ru change')
-            ->translate($sport, 'content', 'ru_ru', 'content ru change');
-
-        $this->em->persist($sport);
+            ->translate($sport, 'content', 'ru_ru', 'content ru change')
+            ->translate($sport, 'title', 'en_us', 'sport en update')
+            ->translate($sport, 'content', 'en_us', 'content en update')
+        ;
         $this->em->flush();
-        $translations = $repo->findTranslations($sport);
 
+        $this->assertEquals('sport en update', $sport->getTitle());
+        $this->assertEquals('content en update', $sport->getContent());
+
+        $translations = $repo->findTranslations($sport);
         $this->assertEquals(3, count($translations));
 
         $this->assertArrayHasKey('de_de', $translations);
@@ -113,7 +169,8 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
             ->translate($sport, 'title', 'de_de', 'sport de')
             ->translate($sport, 'content', 'de_de', 'content de')
             ->translate($sport, 'title', 'ru_ru', 'sport ru')
-            ->translate($sport, 'content', 'ru_ru', 'content ru');
+            ->translate($sport, 'content', 'ru_ru', 'content ru')
+        ;
 
         $this->em->persist($sport);
         $this->em->flush();

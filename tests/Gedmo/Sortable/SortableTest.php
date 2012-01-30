@@ -7,6 +7,9 @@ use Tool\BaseTestCaseORM;
 use Sortable\Fixture\Node;
 use Sortable\Fixture\Item;
 use Sortable\Fixture\Category;
+use Sortable\Fixture\SimpleListItem;
+use Sortable\Fixture\Author;
+use Sortable\Fixture\Paper;
 
 /**
  * These are tests for sluggable behavior
@@ -21,6 +24,10 @@ class SortableTest extends BaseTestCaseORM
     const NODE = 'Sortable\\Fixture\\Node';
     const ITEM = 'Sortable\\Fixture\\Item';
     const CATEGORY = 'Sortable\\Fixture\\Category';
+    const SIMPLE_LIST_ITEM = 'Sortable\\Fixture\\SimpleListItem';
+    const AUTHOR = 'Sortable\\Fixture\\Author';
+    const PAPER = 'Sortable\\Fixture\\Paper';
+
     private $nodeId;
     
     protected function setUp()
@@ -255,13 +262,72 @@ class SortableTest extends BaseTestCaseORM
         $this->assertEquals("Item2_2", $items[1]->getName());
         $this->assertEquals("Category2", $items[1]->getCategory()->getName());
     }
+
+    /**
+     * Test for issue #219
+     */
+    public function test219()
+    {
+        $item1 = new SimpleListItem();
+        $item1->setName("Item 1");
+        $this->em->persist($item1);
+
+        $this->em->flush();
+        
+        $item1->setName("Update...");
+        $item1->setPosition(1);
+        $this->em->persist($item1);
+        $this->em->flush();
+        
+        $this->em->remove($item1);
+        $this->em->flush();
+        $this->em->clear();
+    }
+
+    /**
+     * Test for issue #226
+     */
+    public function test226()
+    {
+        $paper1 = new Paper();
+        $paper1->setName("Paper1");
+        $this->em->persist($paper1);
+
+        $paper2 = new Paper();
+        $paper2->setName("Paper2");
+        $this->em->persist($paper2);
+
+        $author1 = new Author();
+        $author1->setName("Author1");
+        $author1->setPaper($paper1);
+        
+        $author2 = new Author();
+        $author2->setName("Author2");
+        $author2->setPaper($paper1);
+
+        $author3 = new Author();
+        $author3->setName("Author3");
+        $author3->setPaper($paper2);
+
+        $this->em->persist($author1);
+        $this->em->persist($author2);
+        $this->em->persist($author3);
+        $this->em->flush();
+
+        $this->assertEquals(1, $author1->getPosition());
+        $this->assertEquals(2, $author2->getPosition());
+        $this->assertEquals(1, $author3->getPosition());
+    }
     
     protected function getUsedEntityFixtures()
     {
         return array(
             self::NODE,
             self::ITEM,
-            self::CATEGORY
+            self::CATEGORY,
+            self::SIMPLE_LIST_ITEM,
+            self::AUTHOR,
+            self::PAPER,
         );
     }
     

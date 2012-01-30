@@ -1,12 +1,41 @@
 # Doctrine2 behavioral extensions
 
-**Version 2.2-DEV**
+**Version 2.3-DEV**
+
+[![Build Status](https://secure.travis-ci.org/l3pp4rd/DoctrineExtensions.png?branch=master)](http://travis-ci.org/l3pp4rd/DoctrineExtensions)
 
 ### Latest updates
 
-**Note:** Use 2.1.x tag in order to use extensions based on Doctrine2.1.x versions. Currently
-master branch is based on 2.2.x versions and may not work with 2.1.x components. ODM currently
-does not work with **doctrine common 2.2.x**
+**Note:** Use 2.1.x or 2.2.x tag in order to use extensions based on Doctrine2.x.x component versions. Currently
+master branch is based on 2.3.x versions and may not work with older components.
+
+**2012-01-23**
+
+- Fixed an issue with inheritance mapping in case of multiple class extension.
+For details take a [peek at tests](https://github.com/l3pp4rd/DoctrineExtensions/blob/master/tests/Gedmo/Tree/MultiInheritanceTest2.php)
+
+**2012-01-22**
+
+- Adapted extensions for recent 2.3.0-DEV version of doctrine2. Released a tag for 2.2.x component
+support. In general extensions are **BC** with versions 2.1.x, 2.2.x of doctrine2.
+
+**2012-01-09**
+
+- My [blog](http://gediminasm.org) was recently rebuilt from scratch using symfony2.
+All recent documentation based on [extension docs](https://github.com/l3pp4rd/DoctrineExtensions/tree/master/doc)
+will be available there too. Also it will be a good example for symfony2 users.
+
+**2012-01-04**
+
+- Refactored translatable to be able to persist, update many translations
+using repository, [issue #224](https://github.com/l3pp4rd/DoctrineExtensions/issues/224)
+
+**2011-12-20**
+
+- Refactored html tree building function, see [documentation](https://github.com/l3pp4rd/DoctrineExtensions/blob/master/doc/tree.md)
+- Added [example](https://github.com/l3pp4rd/DoctrineExtensions/tree/master/example)
+on how to create entity manager with extensions hooked using environment without framework
+- To run this example follow the documentation on the bottom of this document
 
 **2011-10-30**
 
@@ -17,18 +46,6 @@ from the specific version, etc.: **2.2.x** or **2.1.x** both are supported
 
 - [@everzet](https://github.com/everzet) has contributed the **Translator** behavior, which indeed
 is a more explicit way of handling translations in your projects
-
-**2011-10-08**
-
-- Thanks to [@acasademont](https://github.com/acasademont) Translatable now does not store translations for default locale. It is always left as original record value.
-So be sure you do not change your default locale per project or per data migration. This way
-it is more rational and unnecessary to store it additionaly in translation table.
-
-**2011-09-24**
-
-- Sluggable was refactored with a **BC break** for the sake of simplicity it now uses a single @Slug annotation.
-Also there were slug handlers introduced for extended sluggable functionality, like path based
-or relation based slugs. See the [documentation](https://github.com/l3pp4rd/DoctrineExtensions/blob/master/doc/sluggable.md)
 
 ### Summary and features
 
@@ -76,18 +93,14 @@ List of extensions which support ODM
 - Sluggable
 - Timestampable
 - Loggable
-- Sortable
 - Translator
 
 All these extensions can be nested together and mapped in traditional ways - annotations,
 xml or yaml
 
-**Notice:** extension tutorial on doctrine blog is outdated, most recent documentation is in **doc** directory.
-There is a post introducing to these extensions on [doctrine project](http://www.doctrine-project.org/blog/doctrine2-behavioral-extensions "Doctrine2 behavior extensions")
-
-You can test these extensions on [my blog](http://gediminasm.org/test/ "Test doctrine behavior extensions").
-
-All tutorials for basic usage examples are on [my blog](http://gediminasm.org "Tutorials for extensions") also.
+You can test these extensions on [my blog](http://gediminasm.org/demo "Test doctrine behavioral extensions").
+All tutorials for basic usage examples are on [my blog](http://gediminasm.org "Tutorials for extensions") too.
+You can also fork or clone this blog from [github repository](https://github.com/l3pp4rd/gediminasm.org)
 
 ### Running the tests:
 
@@ -98,6 +111,17 @@ To setup and run tests follow these steps:
 - run: **php bin/vendors.php**
 - run: **phpunit -c tests**
 - optional - run mongodb in background to complete all tests
+
+### Running the example:
+
+To setup and run example follow these steps:
+
+- go to the root directory of extensions
+- run: **php bin/vendors.php** installs doctrine and required symfony libraries
+- edit **example/em.php** and configure your database on top of the file
+- run: **./example/bin/console** or **php example/bin/console** for console commands
+- run: **./example/bin/console orm:schema-tool:create** to create schema
+- run: **php example/run.php** to run example
 
 ### Contributors:
 

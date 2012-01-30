@@ -52,11 +52,12 @@ $loader->registerNamespaces(array(
 ));
 $loader->register();
 
-Gedmo\Version::checkODMMongoDBDependencies();
-Gedmo\Version::checkORMDependencies();
-
 \Doctrine\Common\Annotations\AnnotationRegistry::registerFile(
     VENDOR_PATH.'/doctrine-orm/lib/Doctrine/ORM/Mapping/Driver/DoctrineAnnotations.php'
+);
+
+\Doctrine\Common\Annotations\AnnotationRegistry::registerFile(
+    VENDOR_PATH.'/doctrine-mongodb-odm/lib/Doctrine/ODM/MongoDB/Mapping/Annotations/DoctrineAnnotations.php'
 );
 
 \Doctrine\Common\Annotations\AnnotationRegistry::registerAutoloadNamespace(

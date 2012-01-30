@@ -3,7 +3,6 @@
 namespace Gedmo\Sluggable\Mapping\Driver;
 
 use Gedmo\Mapping\Driver\Xml as BaseXml,
-    Doctrine\Common\Persistence\Mapping\ClassMetadata,
     Gedmo\Exception\InvalidMappingException;
 
 /**
@@ -37,13 +36,7 @@ class Xml extends BaseXml
     /**
      * {@inheritDoc}
      */
-    public function validateFullMetadata(ClassMetadata $meta, array $config)
-    {}
-
-    /**
-     * {@inheritDoc}
-     */
-    public function readExtendedMetadata(ClassMetadata $meta, array &$config)
+    public function readExtendedMetadata($meta, array &$config)
     {
         /**
          * @var \SimpleXmlElement $xml
@@ -104,6 +97,9 @@ class Xml extends BaseXml
                             $this->_getAttribute($slug, 'separator') : '-',
                         'handlers' => $handlers
                     );
+                    if ($meta->isIdentifier($field) && !$config['slugs'][$field]['unique']) {
+                        throw new InvalidMappingException("Identifier field - [{$field}] slug must be unique in order to maintain primary key in class - {$meta->name}");
+                    }
                 }
             }
         }
@@ -112,11 +108,11 @@ class Xml extends BaseXml
     /**
      * Checks if $field type is valid as Sluggable field
      *
-     * @param ClassMetadata $meta
+     * @param object $meta
      * @param string $field
      * @return boolean
      */
-    protected function isValidField(ClassMetadata $meta, $field)
+    protected function isValidField($meta, $field)
     {
         $mapping = $meta->getFieldMapping($field);
         return $mapping && in_array($mapping['type'], $this->validTypes);

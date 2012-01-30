@@ -2,13 +2,15 @@
 
 namespace Gedmo\Tree\Strategy\ORM;
 
+use Gedmo\Exception\UnexpectedValueException;
+use Doctrine\ORM\Proxy\Proxy;
 use Gedmo\Tool\Wrapper\EntityWrapper;
 use Gedmo\Tool\Wrapper\AbstractWrapper;
-use Gedmo\Tree\Strategy,
-    Doctrine\ORM\EntityManager,
-    Gedmo\Tree\TreeListener,
-    Doctrine\ORM\Mapping\ClassMetadataInfo,
-    Doctrine\ORM\Query;
+use Gedmo\Tree\Strategy;
+use Doctrine\ORM\EntityManager;
+use Gedmo\Tree\TreeListener;
+use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use Doctrine\ORM\Query;
 
 /**
  * This strategy makes tree act like
@@ -188,6 +190,7 @@ class Nested implements Strategy
         }
         $rootId = isset($config['root']) ? $wrapped->getPropertyValue($config['root']) : null;
         $diff = $rightValue - $leftValue + 1;
+        $this->shiftRL($em, $config['useObjectClass'], $rightValue + 1, -$diff, $rootId);
         if ($diff > 2) {
             $dql = "SELECT node FROM {$config['useObjectClass']} node";
             $dql .= " WHERE node.{$config['left']} BETWEEN :left AND :right";
@@ -203,8 +206,6 @@ class Nested implements Strategy
                 $uow->scheduleForDelete($removalNode);
             }
         }
-
-        $this->shiftRL($em, $config['useObjectClass'], $rightValue + 1, -$diff, $rootId);
     }
 
     /**
@@ -279,7 +280,7 @@ class Nested implements Strategy
             $parentLeft = $wrappedParent->getPropertyValue($config['left']);
             $parentRight = $wrappedParent->getPropertyValue($config['right']);
             if (!$isNewNode && $rootId === $parentRootId && $parentLeft >= $left && $parentRight <= $right) {
-                throw new \Gedmo\Exception\UnexpectedValueException("Cannot set child as parent to node: {$nodeId}");
+                throw new UnexpectedValueException("Cannot set child as parent to node: {$nodeId}");
             }
             if (isset($config['level'])) {
                 $level = $wrappedParent->getPropertyValue($config['level']);
@@ -287,19 +288,21 @@ class Nested implements Strategy
             switch ($position) {
                 case self::PREV_SIBLING:
                     $newParent = $wrappedParent->getPropertyValue($config['parent']);
-                    if (!$isNewNode) {
-                        $wrapped->setPropertyValue($config['parent'], $newParent);
-                        $em->getUnitOfWork()->recomputeSingleEntityChangeSet($meta, $node);
+                    if (is_null($newParent) && (isset($config['root']) || $isNewNode)) {
+                        throw new UnexpectedValueException("Cannot persist sibling for a root node, tree operation is not possible");
                     }
+                    $wrapped->setPropertyValue($config['parent'], $newParent);
+                    $em->getUnitOfWork()->recomputeSingleEntityChangeSet($meta, $node);
                     $start = $parentLeft;
                     break;
 
                 case self::NEXT_SIBLING:
                     $newParent = $wrappedParent->getPropertyValue($config['parent']);
-                    if (!$isNewNode) {
-                        $wrapped->setPropertyValue($config['parent'], $newParent);
-                        $em->getUnitOfWork()->recomputeSingleEntityChangeSet($meta, $node);
+                    if (is_null($newParent) && (isset($config['root']) || $isNewNode)) {
+                        throw new UnexpectedValueException("Cannot persist sibling for a root node, tree operation is not possible");
                     }
+                    $wrapped->setPropertyValue($config['parent'], $newParent);
+                    $em->getUnitOfWork()->recomputeSingleEntityChangeSet($meta, $node);
                     $start = $parentRight + 1;
                     break;
 
