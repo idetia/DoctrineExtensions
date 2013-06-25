@@ -10,7 +10,6 @@ use Sluggable\Fixture\Issue131\Article;
  * These are tests for Sluggable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Sluggable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -36,7 +35,7 @@ class Issue131Test extends BaseTestCaseORM
         $this->em->persist($test);
         $this->em->flush();
 
-        $this->assertEquals(null, $test->getSlug());
+        $this->assertNull($test->getSlug());
 
         $test2 = new Article;
         $test2->setTitle('');
@@ -44,7 +43,7 @@ class Issue131Test extends BaseTestCaseORM
         $this->em->persist($test2);
         $this->em->flush();
 
-        $this->assertEquals(null, $test2->getSlug());
+        $this->assertNull($test2->getSlug());
     }
 
     protected function getUsedEntityFixtures()

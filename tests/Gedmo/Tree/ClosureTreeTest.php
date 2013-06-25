@@ -6,14 +6,16 @@ use Doctrine\Common\EventManager;
 use Tool\BaseTestCaseORM;
 use Doctrine\Common\Util\Debug;
 use Tree\Fixture\Closure\Category;
+use Tree\Fixture\Closure\News;
 use Tree\Fixture\Closure\CategoryClosure;
+use Tree\Fixture\Closure\CategoryWithoutLevel;
+use Tree\Fixture\Closure\CategoryWithoutLevelClosure;
 
 /**
  * These are tests for Tree behavior
  *
  * @author Gustavo Adrian <comfortablynumb84@gmail.com>
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Tree
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -24,13 +26,20 @@ class ClosureTreeTest extends BaseTestCaseORM
     const PERSON = "Tree\\Fixture\\Closure\\Person";
     const USER = "Tree\\Fixture\\Closure\\User";
     const PERSON_CLOSURE = "Tree\\Fixture\\Closure\\PersonClosure";
+    const NEWS = "Tree\\Fixture\\Closure\\News";
+    const CATEGORY_WITHOUT_LEVEL = "Tree\\Fixture\\Closure\\CategoryWithoutLevel";
+    const CATEGORY_WITHOUT_LEVEL_CLOSURE = "Tree\\Fixture\\Closure\\CategoryWithoutLevelClosure";
+
+    protected $listener;
 
     protected function setUp()
     {
         parent::setUp();
 
+        $this->listener = new TreeListener;
+
         $evm = new EventManager;
-        $evm->addEventSubscriber(new TreeListener);
+        $evm->addEventSubscriber($this->listener);
 
         $this->getMockSqliteEntityManager($evm);
         $this->populate();
@@ -91,7 +100,7 @@ class ClosureTreeTest extends BaseTestCaseORM
         $query->setParameter('ancestor', $food);
 
         $foodClosures = $query->getResult();
-        $this->assertEquals(12, count($foodClosures));
+        $this->assertCount(12, $foodClosures);
         foreach ($foodClosures as $closure) {
             $descendant = $closure->getDescendant();
             if ($descendant === $food) {
@@ -103,31 +112,31 @@ class ClosureTreeTest extends BaseTestCaseORM
             $descendantClosures = $query->getResult();
             switch ($descendantTitle) {
                 case 'Fruits':
-                    $this->assertEquals(5, count($descendantClosures));
+                    $this->assertCount(5, $descendantClosures);
                     $this->assertEquals(1, $closure->getDepth());
                     break;
                 case 'Oranges':
-                    $this->assertEquals(1, count($descendantClosures));
+                    $this->assertCount(1, $descendantClosures);
                     $this->assertEquals(2, $closure->getDepth());
                     break;
                 case 'Berries':
-                    $this->assertEquals(2, count($descendantClosures));
+                    $this->assertCount(2, $descendantClosures);
                     $this->assertEquals(2, $closure->getDepth());
                     break;
                 case 'Vegitables':
-                    $this->assertEquals(3, count($descendantClosures));
+                    $this->assertCount(3, $descendantClosures);
                     $this->assertEquals(1, $closure->getDepth());
                     break;
                 case 'Milk':
-                    $this->assertEquals(3, count($descendantClosures));
+                    $this->assertCount(3, $descendantClosures);
                     $this->assertEquals(1, $closure->getDepth());
                     break;
                 case 'Cheese':
-                    $this->assertEquals(2, count($descendantClosures));
+                    $this->assertCount(2, $descendantClosures);
                     $this->assertEquals(2, $closure->getDepth());
                     break;
                 case 'Strawberries':
-                    $this->assertEquals(1, count($descendantClosures));
+                    $this->assertCount(1, $descendantClosures);
                     $this->assertEquals(3, $closure->getDepth());
                     break;
             }
@@ -172,7 +181,7 @@ class ClosureTreeTest extends BaseTestCaseORM
         $query->setParameter('descendant', $strawberries);
 
         $closures = $query->getResult();
-        $this->assertEquals(1, count($closures));
+        $this->assertCount(1, $closures);
         $this->assertTrue($this->hasAncestor($closures, 'Strawberries'));
     }
 
@@ -209,6 +218,29 @@ class ClosureTreeTest extends BaseTestCaseORM
         $this->em->flush();
     }
 
+    public function testIfEntityHasNotIncludedTreeLevelFieldThenDontProcessIt()
+    {
+        $listener = $this->getMock('Gedmo\Tree\TreeListener', array('getStrategy'));
+        $strategy = $this->getMock('Gedmo\Tree\Strategy\ORM\Closure', array('setLevelFieldOnPendingNodes'), array($listener));
+        $listener->expects($this->any())
+            ->method('getStrategy')
+            ->will($this->returnValue($strategy));
+
+        $strategy->expects($this->never())
+            ->method('setLevelFieldOnPendingNodes');
+
+        $evm = $this->em->getEventManager();
+
+        $evm->removeEventListener($this->listener->getSubscribedEvents(), $this->listener);
+        $evm->addEventListener($this->listener->getSubscribedEvents(), $this->listener);
+
+        $cat = new CategoryWithoutLevel();
+        $cat->setTitle('Test');
+
+        $this->em->persist($cat);
+        $this->em->flush();
+    }
+
     private function hasAncestor($closures, $name)
     {
         $result = false;
@@ -229,7 +261,10 @@ class ClosureTreeTest extends BaseTestCaseORM
             self::CLOSURE,
             self::PERSON,
             self::PERSON_CLOSURE,
-            self::USER
+            self::USER,
+            self::NEWS,
+            self::CATEGORY_WITHOUT_LEVEL,
+            self::CATEGORY_WITHOUT_LEVEL_CLOSURE
         );
     }
 
@@ -295,5 +330,25 @@ class ClosureTreeTest extends BaseTestCaseORM
         $this->em->persist($mouldCheese);
 
         $this->em->flush();
+    }
+
+    public function testCascadePersistTree()
+    {
+        $politics = new Category();
+        $politics->setTitle('Politics');
+
+        $news = new News('Lorem ipsum', $politics);
+        $this->em->persist($news);
+        $this->em->flush();
+
+        $closure = $this->em->createQueryBuilder()
+                    ->select('c')
+                    ->from(self::CLOSURE, 'c')
+                    ->where('c.ancestor = :ancestor')
+                    ->setParameter('ancestor', $politics->getId())
+                    ->getQuery()
+                    ->getResult();
+
+        $this->assertCount(1, $closure);
     }
 }

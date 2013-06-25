@@ -10,7 +10,6 @@ use Doctrine\Common\Util\Debug;
  * These are tests for Tree behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Tree
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -39,13 +38,13 @@ class MultiInheritanceTest extends BaseTestCaseORM
         $right = $meta->getReflectionProperty('rgt')->getValue($food);
 
         $this->assertEquals(1, $left);
-        $this->assertTrue($food->getCreated() !== null);
-        $this->assertTrue($food->getUpdated() !== null);
+        $this->assertNotNull($food->getCreated());
+        $this->assertNotNull($food->getUpdated());
 
         $translationRepo = $this->em->getRepository(self::TRANSLATION);
         $translations = $translationRepo->findTranslations($food);
 
-        $this->assertEquals(0, count($translations));
+        $this->assertCount(0, $translations);
         $this->assertEquals('food', $food->getSlug());
     }
 
@@ -63,13 +62,13 @@ class MultiInheritanceTest extends BaseTestCaseORM
         $this->assertEquals(3, $count);
 
         $children = $repo->children($vegies, true);
-        $this->assertEquals(3, count($children));
+        $this->assertCount(3, $children);
 
         // node repository will not find it
         $baseNodeRepo = $this->em->getRepository(self::BASE_NODE);
         $cabbage = $baseNodeRepo->findOneByIdentifier('cabbage');
         $path = $baseNodeRepo->getPath($cabbage);
-        $this->assertEquals(3, count($path));
+        $this->assertCount(3, $path);
     }
 
     protected function getUsedEntityFixtures()

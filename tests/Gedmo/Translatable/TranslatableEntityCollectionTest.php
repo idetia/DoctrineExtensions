@@ -11,7 +11,6 @@ use Translatable\Fixture\Comment;
  * These are tests for translatable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -28,7 +27,7 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
         parent::setUp();
 
         $evm = new EventManager;
-        $this->translatableListener = new TranslationListener();
+        $this->translatableListener = new TranslatableListener();
         $this->translatableListener->setTranslatableLocale('en_us');
         $this->translatableListener->setDefaultLocale('en_us');
         $evm->addEventSubscriber($this->translatableListener);
@@ -51,6 +50,7 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
     {
         $this->translatableListener->setTranslatableLocale('de');
         $this->translatableListener->setDefaultLocale('en');
+        $this->translatableListener->setPersistDefaultLocaleTranslation(true);
         $repo = $this->em->getRepository(self::TRANSLATION);
         $entity = new Article;
         $entity->setTitle('he'); // is translated to de
@@ -64,6 +64,13 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
 
         $this->em->persist($entity);
         $this->em->flush();
+        $this->em->clear();
+        $trans = $repo->findTranslations($this->em->find(self::ARTICLE, $entity->getId()));
+        $this->assertCount(4, $trans);
+        $this->assertSame('my article de', $trans['de']['title']); // overrides "he" which would be used if translate for de not called
+        $this->assertSame('my article es', $trans['es']['title']);
+        $this->assertSame('my article fr', $trans['fr']['title']);
+        $this->assertSame('my article en', $trans['en']['title']);
     }
 
     /**
@@ -76,7 +83,7 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
         $sport = $this->em->getRepository(self::ARTICLE)->find(1);
         $translations = $repo->findTranslations($sport);
 
-        $this->assertEquals(2, count($translations));
+        $this->assertCount(2, $translations);
 
         $this->assertArrayHasKey('de_de', $translations);
         $this->assertArrayHasKey('title', $translations['de_de']);
@@ -106,7 +113,7 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
         $this->em->flush();
 
         $translations = $repo->findTranslations($sport);
-        $this->assertEquals(2, count($translations));
+        $this->assertCount(2, $translations);
 
         $this->assertArrayHasKey('ru_ru', $translations);
         $this->assertArrayHasKey('title', $translations['ru_ru']);
@@ -137,7 +144,7 @@ class TranslatableEntityCollectionTest extends BaseTestCaseORM
         $this->assertEquals('content en update', $sport->getContent());
 
         $translations = $repo->findTranslations($sport);
-        $this->assertEquals(3, count($translations));
+        $this->assertCount(3, $translations);
 
         $this->assertArrayHasKey('de_de', $translations);
         $this->assertArrayHasKey('title', $translations['de_de']);

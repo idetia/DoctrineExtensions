@@ -2,28 +2,25 @@
 
 namespace Gedmo\Sluggable\Handler;
 
-use Doctrine\Common\Persistence\ObjectManager;
 use Gedmo\Sluggable\SluggableListener;
 use Gedmo\Sluggable\Mapping\Event\SluggableAdapter;
+use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 
 /**
-* Sluggable handler interface is a common pattern for all
-* slug handlers which can be attached to the sluggable listener.
-* Usage is intented only for internal access of sluggable.
-* Should not be used outside of sluggable extension
-*
-* @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
-* @package Gedmo.Sluggable.Handler
-* @subpackage SlugHandlerInterface
-* @link http://www.gediminasm.org
-* @license MIT License (http://www.opensource.org/licenses/mit-license.php)
-*/
+ * Sluggable handler interface is a common pattern for all
+ * slug handlers which can be attached to the sluggable listener.
+ * Usage is intented only for internal access of sluggable.
+ * Should not be used outside of sluggable extension
+ *
+ * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
+ * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
+ */
 interface SlugHandlerInterface
 {
     /**
      * Construct the slug handler
      *
-     * @param Gedmo\Sluggable\SluggableListener $sluggable
+     * @param SluggableListener $sluggable
      */
     function __construct(SluggableListener $sluggable);
 
@@ -32,7 +29,7 @@ interface SlugHandlerInterface
      * is made whether or not the slug needs to be
      * recalculated
      *
-     * @param Gedmo\Sluggable\Mapping\Event\SluggableAdapter $ea
+     * @param SluggableAdapter $ea
      * @param array $config
      * @param object $object
      * @param string $slug
@@ -44,7 +41,7 @@ interface SlugHandlerInterface
     /**
      * Callback on slug handlers right after the slug is built
      *
-     * @param Gedmo\Sluggable\Mapping\Event\SluggableAdapter $ea
+     * @param SluggableAdapter $ea
      * @param array $config
      * @param object $object
      * @param string $slug
@@ -55,7 +52,7 @@ interface SlugHandlerInterface
     /**
      * Callback for slug handlers on slug completion
      *
-     * @param Gedmo\Sluggable\Mapping\Event\SluggableAdapter $ea
+     * @param SluggableAdapter $ea
      * @param array $config
      * @param object $object
      * @param string $slug
@@ -64,9 +61,15 @@ interface SlugHandlerInterface
     function onSlugCompletion(SluggableAdapter $ea, array &$config, $object, &$slug);
 
     /**
+     * @return boolean whether or not this handler has already urlized the slug
+     */
+    function handlesUrlization();
+
+    /**
      * Validate handler options
      *
      * @param array $options
+     * @param ClassMetadata $meta
      */
-    static function validate(array $options, $meta);
+    static function validate(array $options, ClassMetadata $meta);
 }

@@ -7,6 +7,7 @@ use Gedmo\Sluggable\SluggableListener;
 use Gedmo\Sluggable\Mapping\Event\SluggableAdapter;
 use Gedmo\Tool\Wrapper\AbstractWrapper;
 use Gedmo\Exception\InvalidMappingException;
+use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 
 /**
 * Sluggable handler which should be used for inversed relation mapping
@@ -14,20 +15,17 @@ use Gedmo\Exception\InvalidMappingException;
 * relation changes
 *
 * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
-* @package Gedmo.Sluggable.Handler
-* @subpackage InversedRelativeSlugHandler
-* @link http://www.gediminasm.org
 * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
 */
 class InversedRelativeSlugHandler implements SlugHandlerInterface
 {
     /**
-     * @var Doctrine\Common\Persistence\ObjectManager
+     * @var ObjectManager
      */
     protected $om;
 
     /**
-     * @var Gedmo\Sluggable\SluggableListener
+     * @var SluggableListener
      */
     protected $sluggable;
 
@@ -59,7 +57,7 @@ class InversedRelativeSlugHandler implements SlugHandlerInterface
     /**
      * {@inheritDoc}
      */
-    public static function validate(array $options, $meta)
+    public static function validate(array $options, ClassMetadata $meta)
     {
         if (!isset($options['relationClass']) || !strlen($options['relationClass'])) {
             throw new InvalidMappingException("'relationClass' option must be specified for object slug mapping - {$meta->name}");
@@ -81,7 +79,7 @@ class InversedRelativeSlugHandler implements SlugHandlerInterface
         $isInsert = $this->om->getUnitOfWork()->isScheduledForInsert($object);
         if (!$isInsert) {
             $options = $config['handlers'][get_called_class()];
-            $wrapped = AbstractWrapper::wrapp($object, $this->om);
+            $wrapped = AbstractWrapper::wrap($object, $this->om);
             $oldSlug = $wrapped->getPropertyValue($config['slug']);
             $mappedByConfig = $this->sluggable->getConfiguration(
                 $this->om,
@@ -120,5 +118,13 @@ class InversedRelativeSlugHandler implements SlugHandlerInterface
                 }
             }
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function handlesUrlization()
+    {
+        return false;
     }
 }

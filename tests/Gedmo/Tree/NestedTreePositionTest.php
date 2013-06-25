@@ -11,7 +11,6 @@ use Tree\Fixture\RootCategory;
  * These are tests for Tree behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Tree
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -180,7 +179,7 @@ class NestedTreePositionTest extends BaseTestCaseORM
         $this->em->flush();
 
         $this->assertEquals(1, $oranges->getLevel());
-        $this->assertEquals(1, count($repo->children($fruits, true)));
+        $this->assertCount(1, $repo->children($fruits, true));
 
         $vegies = $repo->findOneByTitle('Vegitables');
         $this->assertEquals(2, $vegies->getLeft());

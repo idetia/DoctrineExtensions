@@ -8,9 +8,6 @@ namespace Gedmo\Timestampable;
  * Timestampable
  * 
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Timestampable
- * @subpackage Timestampable
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 interface Timestampable
@@ -32,7 +29,12 @@ interface Timestampable
      * dates which should be updated on changed "property" 
      * value and become equal to given "value"
      */
-    
+
+    /**
+     * @gedmo:Timestampable(on="change", field="field")
+     * dates which should be updated on changed "property"
+     */
+
     /**
      * example
      * 

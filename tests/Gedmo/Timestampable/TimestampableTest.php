@@ -13,7 +13,6 @@ use Doctrine\Common\Util\Debug,
  * These are tests for Timestampable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Timestampable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -59,17 +58,17 @@ class TimestampableTest extends BaseTestCaseORM
             $sport->getCreated()->format('Y-m-d H:i:s')
         );
         $this->assertEquals(
-            $date->format('Y-m-d H:i:s'),
-            $sport->getUpdated()->format('Y-m-d H:i:s')
+            $date->format('Y-m-d H:i'),
+            $sport->getUpdated()->format('Y-m-d H:i')
         );
-        $this->assertEquals(null, $sport->getPublished());
+        $this->assertNull($sport->getPublished());
 
         $sportComment = $this->em->getRepository(self::COMMENT)->findOneByMessage('hello');
         $this->assertEquals(
-            $date->format('H:i:s'),
-            $sportComment->getModified()->format('H:i:s')
+            $date->format('H:i'),
+            $sportComment->getModified()->format('H:i')
         );
-        $this->assertEquals(null, $sportComment->getClosed());
+        $this->assertNull($sportComment->getClosed());
 
         $sportComment->setStatus(1);
         $published = new Type();
@@ -86,18 +85,13 @@ class TimestampableTest extends BaseTestCaseORM
 
         $sportComment = $this->em->getRepository(self::COMMENT)->findOneByMessage('hello');
         $this->assertEquals(
-            $date->format('Y-m-d H:i:s'),
-            $sportComment->getClosed()->format('Y-m-d H:i:s')
+            $date->format('Y-m-d H:i'),
+            $sportComment->getClosed()->format('Y-m-d H:i')
         );
 
-        $sport = $this->em->getRepository(self::ARTICLE)->findOneByTitle('Updated');
         $this->assertEquals(
-            $date->format('Y-m-d H:i:s'),
-            $sport->getUpdated()->format('Y-m-d H:i:s')
-        );
-        $this->assertEquals(
-            $date->format('Y-m-d H:i:s'),
-            $sport->getPublished()->format('Y-m-d H:i:s')
+            $date->format('Y-m-d H:i'),
+            $sport->getPublished()->format('Y-m-d H:i')
         );
     }
 

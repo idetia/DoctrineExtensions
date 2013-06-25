@@ -8,14 +8,11 @@ namespace Gedmo\Translatable;
  * Translatable
  * 
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable
- * @subpackage Translatable
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 interface Translatable
 {
-    // use now annotations instead of predifined methods, this interface is not necessary
+    // use now annotations instead of predefined methods, this interface is not necessary
     
     /**
      * @gedmo:TranslationEntity
@@ -32,6 +29,6 @@ interface Translatable
     /**
      * @gedmo:Locale OR @gedmo:Language
      * to mark the field as locale used to override global
-     * locale settings from TranslationListener
+     * locale settings from TranslatableListener
      */
 }

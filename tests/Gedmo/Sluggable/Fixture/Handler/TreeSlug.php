@@ -24,12 +24,12 @@ class TreeSlug
     private $title;
 
     /**
-     * @Gedmo\Slug(handlers={
+     * @Gedmo\Slug(fields={"title"}, handlers={
      *      @Gedmo\SlugHandler(class="Gedmo\Sluggable\Handler\TreeSlugHandler", options={
      *          @Gedmo\SlugHandlerOption(name="parentRelationField", value="parent"),
      *          @Gedmo\SlugHandlerOption(name="separator", value="/")
      *      })
-     * }, separator="-", updatable=true, fields={"title"})
+     * }, separator="-", updatable=true)
      * @ORM\Column(name="slug", type="string", length=64, unique=true)
      */
     private $slug;
@@ -37,7 +37,7 @@ class TreeSlug
     /**
      * @Gedmo\TreeParent
      * @ORM\ManyToOne(targetEntity="TreeSlug")
-     * @ORM\JoinColumn(name="parent_id", referencedColumnName="id", onDelete="SET NULL")
+     * @ORM\JoinColumn(name="parent_id", referencedColumnName="id", onDelete="CASCADE")
      */
     private $parent;
 
@@ -59,7 +59,7 @@ class TreeSlug
      */
     private $root;
 
-/**
+    /**
      * @Gedmo\TreeLevel
      * @ORM\Column(name="lvl", type="integer")
      */

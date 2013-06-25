@@ -1,9 +1,8 @@
 tests/phpunit.xml
 tests/temp/*.php
-build/
 scripts/
 vendor/
-.project
-.settings
-.build.xml
-.buildpath
+tags
+.vimrc.local
+/composer.lock
+/composer.phar

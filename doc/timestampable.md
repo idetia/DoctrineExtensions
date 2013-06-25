@@ -16,12 +16,16 @@ Features:
 [blog_reference]: http://gediminasm.org/article/timestampable-behavior-extension-for-doctrine-2 "Timestampable extension for Doctrine 2 helps automate update of dates"
 [blog_test]: http://gediminasm.org/test "Test extensions on this blog"
 
+Update **2012-03-10**
+
+- Add [Timestampable traits](#traits)
+
 Update **2011-04-04**
  
 - Made single listener, one instance can be used for any object manager
 and any number of them
 
-**Note list:**
+**Note:**
 
 - You can [test live][blog_test] on this blog
 - Public [Timestampable repository](http://github.com/l3pp4rd/DoctrineExtensions "Timestampable extension on Github") is available on github
@@ -37,57 +41,24 @@ This article will cover the basic installation and functionality of **Timestampa
 Content:
 
 - [Including](#including-extension) the extension
-- [Attaching](#event-listener) the **Sluggable Listener**
-- Entity [example](#entity)
-- Document [example](#document)
-- [Yaml](#yaml) mapping example
-- [Xml](#xml) mapping example
+- Entity [example](#entity-mapping)
+- Document [example](#document-mapping)
+- [Yaml](#yaml-mapping) mapping example
+- [Xml](#xml-mapping) mapping example
 - Advanced usage [examples](#advanced-examples)
+- Using [Traits](#traits)
 
-## Setup and autoloading {#including-extension}
+<a name="including-extension"></a>
 
-If you using the source from github repository, initial directory structure for
-the extension library should look like this:
+## Setup and autoloading
 
-```
-...
-/DoctrineExtensions
-    /lib
-        /Gedmo
-            /Exception
-            /Mapping
-            /Sluggable
-            /Timestampable
-            /Translatable
-            /Tree
-    /tests
-        ...
-...
-```
+Read the [documentation](http://github.com/l3pp4rd/DoctrineExtensions/blob/master/doc/annotations.md#em-setup)
+or check the [example code](http://github.com/l3pp4rd/DoctrineExtensions/tree/master/example)
+on how to setup and use the extensions in most optimized way.
 
-First of all we need to setup the autoloading of extensions:
+<a name="entity-mapping"></a>
 
-``` php
-<?php
-$classLoader = new \Doctrine\Common\ClassLoader('Gedmo', "/path/to/library/DoctrineExtensions/lib");
-$classLoader->register();
-```
-
-### Attaching the Timestampable Listener to the event manager {#event-listener}
-
-To attach the **Timestampable Listener** to your event system:
-
-``` php
-<?php
-$evm = new \Doctrine\Common\EventManager();
-// ORM and ORM
-$timestampableListener = new \Gedmo\Timestampable\TimestampableListener();
-
-$evm->addEventSubscriber($timestampableListener);
-// now this event manager should be passed to entity manager constructor
-```
-
-## Timestampable Entity example: {#entity}
+## Timestampable Entity example:
 
 ### Timestampable annotations:
 - **@Gedmo\Mapping\Annotation\Timestampable** this annotation tells that this column is timestampable
@@ -95,6 +66,7 @@ by default it updates this column on update. If column is not date, datetime or 
 type it will trigger an exception.
 
 Available configuration options:
+
 - **on** - is main option and can be **create, update, change** this tells when it 
 should be updated
 - **field** - only valid if **on="change"** is specified, tracks property for changes
@@ -129,15 +101,15 @@ class Article
      * @var datetime $created
      *
      * @Gedmo\Timestampable(on="create")
-     * @ORM\Column(type="date")
+     * @ORM\Column(type="datetime")
      */
     private $created;
 
     /**
      * @var datetime $updated
      *
-     * @ORM\Column(type="datetime")
      * @Gedmo\Timestampable(on="update")
+     * @ORM\Column(type="datetime")
      */
     private $updated;
 
@@ -168,7 +140,9 @@ class Article
 }
 ```
 
-## Timestampable Document example: {#document}
+<a name="document-mapping"></a>
+
+## Timestampable Document example:
 
 ``` php
 <?php
@@ -191,9 +165,9 @@ class Article
     private $title;
 
     /**
-     * @var timestamp $created
+     * @var date $created
      *
-     * @ODM\Timestamp
+     * @ODM\Date
      * @Gedmo\Timestampable(on="create")
      */
     private $created;
@@ -235,7 +209,9 @@ class Article
 
 Now on update and creation these annotated fields will be automatically updated
 
-## Yaml mapping example: {#yaml}
+<a name="yaml-mapping"></a>
+
+## Yaml mapping example:
 
 Yaml mapped Article: **/mapping/yaml/Entity.Article.dcm.yml**
 
@@ -265,7 +241,9 @@ Entity\Article:
           on: update
 ```
 
-## Xml mapping example {#xml}
+<a name="xml-mapping"></a>
+
+## Xml mapping example
 
 ``` xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -295,7 +273,9 @@ Entity\Article:
 </doctrine-mapping>
 ```
 
-## Advanced examples: {#advanced-examples}
+<a name="advanced-examples"></a>
+
+## Advanced examples:
 
 ### Using dependency of property changes
 
@@ -368,15 +348,15 @@ class Article
      * @var datetime $created
      *
      * @Gedmo\Timestampable(on="create")
-     * @ORM\Column(type="date")
+     * @ORM\Column(type="datetime")
      */
     private $created;
 
     /**
      * @var datetime $updated
      *
-     * @ORM\Column(type="datetime")
      * @Gedmo\Timestampable(on="update")
+     * @ORM\Column(type="datetime")
      */
     private $updated;
 
@@ -573,8 +553,8 @@ private $dateCreated;
 /**
  * @var datetime $dateLastModified
  *
- * @ORM\Column(name="date_last_modified", type="datetime")
  * @Gedmo\Timestampable(on="update")
+ * @ORM\Column(name="date_last_modified", type="datetime")
  */
 private $dateLastModified;
 ```
@@ -590,3 +570,54 @@ Or if the user does not have a timezone, we could expand that to use a system/ap
 [doctrine_custom_datetime_type]: http://www.doctrine-project.org/docs/orm/2.0/en/cookbook/working-with-datetime.html#handling-different-timezones-with-the-datetime-type "Handling different Timezones with the DateTime Type"
 
 This example is based off [Handling different Timezones with the DateTime Type][doctrine_custom_datetime_type] - however that example may be outdated because it contains some obvioulsy invalid PHP from the TimeZone class.
+
+<a name="traits"></a>
+
+## Traits
+
+You can use timestampable traits for quick **createdAt** **updatedAt** timestamp definitions
+when using annotation mapping.
+
+**Note:** this feature is only available since php **5.4.0**. And you are not required
+to use the Traits provided by extensions.
+
+``` php
+<?php
+namespace Timestampable\Fixture;
+
+use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Gedmo\Mapping\Annotation as Gedmo;
+use Doctrine\ORM\Mapping as ORM;
+
+/**
+ * @ORM\Entity
+ */
+class UsingTrait
+{
+    /**
+     * Hook timestampable behavior
+     * updates createdAt, updatedAt fields
+     */
+    use TimestampableEntity;
+
+    /**
+     * @ORM\Id
+     * @ORM\GeneratedValue
+     * @ORM\Column(type="integer")
+     */
+    private $id;
+
+    /**
+     * @ORM\Column(length=128)
+     */
+    private $title;
+}
+```
+
+**Note:** you must import **Gedmo\Mapping\Annotation as Gedmo** and **Doctrine\ORM\Mapping as ORM**
+annotations. If you use mongodb ODM import **Doctrine\ODM\MongoDB\Mapping\Annotations as ODM** and
+**TimestampableDocument** instead.
+
+Traits are very simple and if you use different field names I recomment to simply create your
+own ones based per project. These ones are standing as an example.
+

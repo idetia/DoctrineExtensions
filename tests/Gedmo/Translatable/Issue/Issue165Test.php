@@ -10,7 +10,6 @@ use Translatable\Fixture\Issue165\SimpleArticle;
  * These are tests for Translatable behavior ODM implementation
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -19,17 +18,17 @@ class Issue165Test extends BaseTestCaseMongoODM
     const ARTICLE = 'Translatable\Fixture\Issue165\SimpleArticle';
     const TRANSLATION = 'Gedmo\\Translatable\\Document\\Translation';
 
-    private $translationListener;
+    private $translatableListener;
     private $articleId;
 
     protected function setUp()
     {
         parent::setUp();
         $evm = new EventManager();
-        $this->translationListener = new TranslationListener;
-        $this->translationListener->setDefaultLocale('en');
-        $this->translationListener->setTranslatableLocale('en');
-        $evm->addEventSubscriber($this->translationListener);
+        $this->translatableListener = new TranslatableListener;
+        $this->translatableListener->setDefaultLocale('en');
+        $this->translatableListener->setTranslatableLocale('en');
+        $evm->addEventSubscriber($this->translatableListener);
 
         $this->getMockDocumentManager($evm);
     }
@@ -49,7 +48,7 @@ class Issue165Test extends BaseTestCaseMongoODM
 
         $this->assertEquals('en', $article->getUntranslated());
 
-        $this->translationListener->setTranslatableLocale('ru');
+        $this->translatableListener->setTranslatableLocale('ru');
 
         $article->setTitle('ru');
         $article->setContent('ru');
@@ -60,7 +59,7 @@ class Issue165Test extends BaseTestCaseMongoODM
 
         $this->assertEquals('ru', $article->getUntranslated());
 
-        $this->translationListener->setTranslatableLocale('de');
+        $this->translatableListener->setTranslatableLocale('de');
 
         $newarticle = new SimpleArticle;
         $newarticle->setTitle('de');
@@ -73,7 +72,7 @@ class Issue165Test extends BaseTestCaseMongoODM
 
         $this->assertEquals('de', $newarticle->getUntranslated());
 
-        $this->translationListener->setTranslatableLocale('en');
+        $this->translatableListener->setTranslatableLocale('en');
 
         $id = $newarticle->getId();
         $newarticle = $this->dm->getRepository('Translatable\Fixture\Issue165\SimpleArticle')->find($id);
@@ -88,7 +87,7 @@ class Issue165Test extends BaseTestCaseMongoODM
 
         $this->assertEquals('en', $newarticle->getUntranslated());
 
-        $this->translationListener->setTranslatableLocale('de');
+        $this->translatableListener->setTranslatableLocale('de');
         $newarticle->setTitle('de2');
         $newarticle->setContent('de2');
         $newarticle->setUntranslated('de2');

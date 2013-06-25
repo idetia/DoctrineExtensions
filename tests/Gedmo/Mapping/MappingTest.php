@@ -10,7 +10,6 @@ use Doctrine\Common\Util\Debug,
  * These are mapping extension tests
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -36,7 +35,7 @@ class MappingTest extends \PHPUnit_Framework_TestCase
         );
 
         $evm = new \Doctrine\Common\EventManager();
-        $evm->addEventSubscriber(new \Gedmo\Translatable\TranslationListener());
+        $evm->addEventSubscriber(new \Gedmo\Translatable\TranslatableListener());
         $this->timestampable = new \Gedmo\Timestampable\TimestampableListener();
         $evm->addEventSubscriber($this->timestampable);
         $evm->addEventSubscriber(new \Gedmo\Sluggable\SluggableListener());
@@ -62,6 +61,6 @@ class MappingTest extends \PHPUnit_Framework_TestCase
             $this->em,
             self::TEST_ENTITY_CATEGORY
         );
-        $this->assertEquals(0, count($conf));
+        $this->assertCount(0, $conf);
     }
 }

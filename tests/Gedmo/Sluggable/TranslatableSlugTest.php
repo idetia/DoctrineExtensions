@@ -7,7 +7,7 @@ use Tool\BaseTestCaseORM;
 use Doctrine\Common\Util\Debug,
     Gedmo\Translatable\Translatable,
     Gedmo\Translatable\Entity\Translation,
-    Gedmo\Translatable\TranslationListener,
+    Gedmo\Translatable\TranslatableListener,
     Sluggable\Fixture\TranslatableArticle,
     Sluggable\Fixture\Comment,
     Sluggable\Fixture\Page;
@@ -16,14 +16,13 @@ use Doctrine\Common\Util\Debug,
  * These are tests for Sluggable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Sluggable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class TranslatableSlugTest extends BaseTestCaseORM
 {
     private $articleId;
-    private $translationListener;
+    private $translatableListener;
 
     const ARTICLE = 'Sluggable\\Fixture\\TranslatableArticle';
     const COMMENT = 'Sluggable\\Fixture\\Comment';
@@ -35,10 +34,10 @@ class TranslatableSlugTest extends BaseTestCaseORM
         parent::setUp();
 
         $evm = new EventManager;
-        $this->translationListener = new TranslationListener();
-        $this->translationListener->setTranslatableLocale('en_us');
+        $this->translatableListener = new TranslatableListener();
+        $this->translatableListener->setTranslatableLocale('en_US');
         $evm->addEventSubscriber(new SluggableListener);
-        $evm->addEventSubscriber($this->translationListener);
+        $evm->addEventSubscriber($this->translatableListener);
 
         $this->getMockSqliteEntityManager($evm);
         $this->populate();
@@ -48,14 +47,14 @@ class TranslatableSlugTest extends BaseTestCaseORM
     {
         $article = $this->em->find(self::ARTICLE, $this->articleId);
         $this->assertTrue($article instanceof Translatable && $article instanceof Sluggable);
-        $this->assertEquals($article->getSlug(), 'the-title-my-code');
+        $this->assertEquals('the-title-my-code', $article->getSlug());
         $repo = $this->em->getRepository(self::TRANSLATION);
 
         $translations = $repo->findTranslations($article);
-        $this->assertEquals(count($translations), 0);
+        $this->assertCount(0, $translations);
 
         $article = $this->em->find(self::ARTICLE, $this->articleId);
-        $article->setTranslatableLocale('de_de');
+        $article->setTranslatableLocale('de_DE');
         $article->setCode('code in de');
         $article->setTitle('title in de');
 
@@ -65,18 +64,18 @@ class TranslatableSlugTest extends BaseTestCaseORM
 
         $repo = $this->em->getRepository(self::TRANSLATION);
         $translations = $repo->findTranslations($article);
-        $this->assertEquals(count($translations), 1);
-        $this->assertArrayHasKey('de_de', $translations);
-        $this->assertEquals(3, count($translations['de_de']));
+        $this->assertCount(1, $translations);
+        $this->assertArrayHasKey('de_DE', $translations);
+        $this->assertCount(3, $translations['de_DE']);
 
-        $this->assertArrayHasKey('code', $translations['de_de']);
-        $this->assertEquals('code in de', $translations['de_de']['code']);
+        $this->assertArrayHasKey('code', $translations['de_DE']);
+        $this->assertEquals('code in de', $translations['de_DE']['code']);
 
-        $this->assertArrayHasKey('title', $translations['de_de']);
-        $this->assertEquals('title in de', $translations['de_de']['title']);
+        $this->assertArrayHasKey('title', $translations['de_DE']);
+        $this->assertEquals('title in de', $translations['de_DE']['title']);
 
-        $this->assertArrayHasKey('slug', $translations['de_de']);
-        $this->assertEquals('title-in-de-code-in-de', $translations['de_de']['slug']);
+        $this->assertArrayHasKey('slug', $translations['de_DE']);
+        $this->assertEquals('title-in-de-code-in-de', $translations['de_DE']['slug']);
     }
 
     public function testConcurrentChanges()

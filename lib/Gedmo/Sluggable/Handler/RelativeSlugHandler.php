@@ -7,6 +7,7 @@ use Gedmo\Sluggable\SluggableListener;
 use Gedmo\Sluggable\Mapping\Event\SluggableAdapter;
 use Gedmo\Tool\Wrapper\AbstractWrapper;
 use Gedmo\Exception\InvalidMappingException;
+use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 
 /**
 * Sluggable handler which should be used in order to prefix
@@ -15,9 +16,6 @@ use Gedmo\Exception\InvalidMappingException;
 * where path separator separates the relative slug
 *
 * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
-* @package Gedmo.Sluggable.Handler
-* @subpackage RelativeSlugHandler
-* @link http://www.gediminasm.org
 * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
 */
 class RelativeSlugHandler implements SlugHandlerInterface
@@ -25,12 +23,12 @@ class RelativeSlugHandler implements SlugHandlerInterface
     const SEPARATOR = '/';
 
     /**
-     * @var Doctrine\Common\Persistence\ObjectManager
+     * @var ObjectManager
      */
     protected $om;
 
     /**
-     * @var Gedmo\Sluggable\SluggableListener
+     * @var SluggableListener
      */
     protected $sluggable;
 
@@ -60,23 +58,6 @@ class RelativeSlugHandler implements SlugHandlerInterface
     public function __construct(SluggableListener $sluggable)
     {
         $this->sluggable = $sluggable;
-    }
-
-    /**
-    * {@inheritDoc}
-    */
-    public function getOptions($object)
-    {
-        $meta = $this->om->getClassMetadata(get_class($object));
-        if (!isset($this->options[$meta->name])) {
-            $config = $this->sluggable->getConfiguration($this->om, $meta->name);
-            $options = $config['handlers'][get_called_class()];
-            $default = array(
-                'separator' => '/'
-            );
-            $this->options[$meta->name] = array_merge($default, $options);
-        }
-        return $this->options[$meta->name];
     }
 
     /**
@@ -110,7 +91,7 @@ class RelativeSlugHandler implements SlugHandlerInterface
     /**
      * {@inheritDoc}
      */
-    public static function validate(array $options, $meta)
+    public static function validate(array $options, ClassMetadata $meta)
     {
         if (!$meta->isSingleValuedAssociation($options['relationField'])) {
             throw new InvalidMappingException("Unable to find slug relation through field - [{$options['relationField']}] in class - {$meta->name}");
@@ -138,14 +119,22 @@ class RelativeSlugHandler implements SlugHandlerInterface
             $this->originalTransliterator,
             array($text, $separator, $object)
         );
-        $wrapped = AbstractWrapper::wrapp($object, $this->om);
+        $wrapped = AbstractWrapper::wrap($object, $this->om);
         $relation = $wrapped->getPropertyValue($this->usedOptions['relationField']);
         if ($relation) {
-            $wrappedRelation = AbstractWrapper::wrapp($relation, $this->om);
+            $wrappedRelation = AbstractWrapper::wrap($relation, $this->om);
             $slug = $wrappedRelation->getPropertyValue($this->usedOptions['relationSlugField']);
             $result = $slug . $this->usedOptions['separator'] . $result;
         }
         $this->sluggable->setTransliterator($this->originalTransliterator);
         return $result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function handlesUrlization()
+    {
+        return true;
     }
 }

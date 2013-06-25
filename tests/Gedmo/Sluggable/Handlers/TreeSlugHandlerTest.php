@@ -11,7 +11,6 @@ use Gedmo\Tree\TreeListener;
  * These are tests for Sluggable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Sluggable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -46,6 +45,15 @@ class TreeSlugHandlerTest extends BaseTestCaseORM
 
         $citrons = $repo->findOneByTitle('Citrons');
         $this->assertEquals('food/fruits/citrons', $citrons->getSlug());
+
+        $apple = $repo->findOneByTitle('Apple');
+        $this->assertEquals('food/fruits/apple', $apple->getSlug());
+
+        $kiwi = $repo->findOneByTitle('Kiwi');
+        $this->assertEquals('food/fruits/kiwi', $kiwi->getSlug());
+
+        $banana = $repo->findOneByTitle('Banana');
+        $this->assertEquals('food/fruits/banana', $banana->getSlug());
     }
 
     public function testSlugUpdates()
@@ -146,6 +154,15 @@ class TreeSlugHandlerTest extends BaseTestCaseORM
         $citrons = new TreeSlug;
         $citrons->setTitle('Citrons');
 
+        $apple = new TreeSlug;
+        $apple->setTitle('Apple');
+
+        $kiwi = new TreeSlug;
+        $kiwi->setTitle('Kiwi');
+
+        $banana = new TreeSlug;
+        $banana->setTitle('Banana');
+
         $repo
             ->persistAsFirstChild($food)
             ->persistAsFirstChildOf($fruits, $food)
@@ -153,7 +170,10 @@ class TreeSlugHandlerTest extends BaseTestCaseORM
             ->persistAsLastChildOf($milk, $food)
             ->persistAsLastChildOf($meat, $food)
             ->persistAsFirstChildOf($oranges, $fruits)
-            ->persistAsFirstChildOf($citrons, $fruits);
+            ->persistAsFirstChildOf($citrons, $fruits)
+            ->persistAsFirstChildOf($apple, $fruits)
+            ->persistAsPrevSiblingOf($kiwi, $apple)
+            ->persistAsNextSiblingOf($banana, $apple);
 
         $this->em->flush();
     }

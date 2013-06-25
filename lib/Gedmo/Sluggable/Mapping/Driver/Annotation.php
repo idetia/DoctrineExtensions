@@ -4,7 +4,7 @@ namespace Gedmo\Sluggable\Mapping\Driver;
 
 use Gedmo\Mapping\Annotation\SlugHandler;
 use Gedmo\Mapping\Annotation\SlugHandlerOption;
-use Gedmo\Mapping\Driver\AnnotationDriverInterface,
+use Gedmo\Mapping\Driver\AbstractAnnotationDriver,
     Doctrine\Common\Annotations\AnnotationReader,
     Gedmo\Exception\InvalidMappingException;
 
@@ -15,12 +15,9 @@ use Gedmo\Mapping\Driver\AnnotationDriverInterface,
  * extension.
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Sluggable.Mapping.Driver
- * @subpackage Annotation
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
-class Annotation implements AnnotationDriverInterface
+class Annotation extends AbstractAnnotationDriver
 {
     /**
      * Annotation to identify field as one which holds the slug
@@ -43,44 +40,19 @@ class Annotation implements AnnotationDriverInterface
      *
      * @var array
      */
-    private $validTypes = array(
+    protected $validTypes = array(
         'string',
         'text',
         'integer',
-        'hash'
+        'hash',
+        'int',
     );
-
-    /**
-     * Annotation reader instance
-     *
-     * @var object
-     */
-    private $reader;
-
-    /**
-     * original driver if it is available
-     */
-    protected $_originalDriver = null;
-
-    /**
-     * {@inheritDoc}
-     */
-    public function setAnnotationReader($reader)
-    {
-        $this->reader = $reader;
-    }
 
     /**
      * {@inheritDoc}
      */
     public function readExtendedMetadata($meta, array &$config) {
-        $class = $meta->getReflectionClass();
-        if (!$class) {
-            // based on recent doctrine 2.3.0-DEV maybe will be fixed in some way
-            // this happens when running annotation driver in combination with
-            // static reflection services. This is not the nicest fix
-            $class = new \ReflectionClass($meta->name);
-        }
+        $class = $this->getMetaReflectionClass($meta);
         // property annotations
         foreach ($class->getProperties() as $property) {
             if ($meta->isMappedSuperclass && !$property->isPrivate() ||
@@ -140,8 +112,14 @@ class Annotation implements AnnotationDriverInterface
                 if (!is_bool($slug->unique)) {
                     throw new InvalidMappingException("Slug annotation [unique], type is not valid and must be 'boolean' in class - {$meta->name}");
                 }
-                if ($meta->isIdentifier($field) && !(bool)$slug->unique) {
+                if (!empty($meta->identifier) && $meta->isIdentifier($field) && !(bool)$slug->unique) {
                     throw new InvalidMappingException("Identifier field - [{$field}] slug must be unique in order to maintain primary key in class - {$meta->name}");
+                }
+                if ($slug->unique === false && $slug->unique_base) {
+                    throw new InvalidMappingException("Slug annotation [unique_base] can not be set if unique is unset or 'false'");
+                }
+                if ($slug->unique_base && !$meta->hasField($slug->unique_base) && !$meta->hasAssociation($slug->unique_base)) {
+                    throw new InvalidMappingException("Unable to find [{$slug->unique_base}] as mapped property in entity - {$meta->name}");
                 }
                 // set all options
                 $config['slugs'][$field] = array(
@@ -150,34 +128,11 @@ class Annotation implements AnnotationDriverInterface
                     'style' => $slug->style,
                     'updatable' => $slug->updatable,
                     'unique' => $slug->unique,
+                    'unique_base' => $slug->unique_base,
                     'separator' => $slug->separator,
-                    'handlers' => $handlers
+                    'handlers' => $handlers,
                 );
             }
         }
-    }
-
-    /**
-     * Checks if $field type is valid as Sluggable field
-     *
-     * @param object $meta
-     * @param string $field
-     * @return boolean
-     */
-    protected function isValidField($meta, $field)
-    {
-        $mapping = $meta->getFieldMapping($field);
-        return $mapping && in_array($mapping['type'], $this->validTypes);
-    }
-
-    /**
-     * Passes in the mapping read by original driver
-     *
-     * @param $driver
-     * @return void
-     */
-    public function setOriginalDriver($driver)
-    {
-        $this->_originalDriver = $driver;
     }
 }

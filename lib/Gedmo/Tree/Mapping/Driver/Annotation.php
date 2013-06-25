@@ -2,8 +2,9 @@
 
 namespace Gedmo\Tree\Mapping\Driver;
 
-use Gedmo\Mapping\Driver\AnnotationDriverInterface,
-    Gedmo\Exception\InvalidMappingException;
+use Gedmo\Mapping\Driver\AbstractAnnotationDriver,
+    Gedmo\Exception\InvalidMappingException,
+    Gedmo\Tree\Mapping\Validator;
 
 /**
  * This is an annotation mapping driver for Tree
@@ -12,12 +13,10 @@ use Gedmo\Mapping\Driver\AnnotationDriverInterface,
  * extension.
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Tree.Mapping.Driver
- * @subpackage Annotation
- * @link http://www.gediminasm.org
+ * @author <rocco@roccosportal.com>
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
-class Annotation implements AnnotationDriverInterface
+class Annotation extends AbstractAnnotationDriver
 {
     /**
      * Annotation to define the tree type
@@ -55,64 +54,55 @@ class Annotation implements AnnotationDriverInterface
     const CLOSURE = 'Gedmo\\Mapping\\Annotation\\TreeClosure';
 
     /**
-     * List of types which are valid for tree fields
-     *
-     * @var array
+     * Annotation to specify path class
      */
-    private $validTypes = array(
-        'integer',
-        'smallint',
-        'bigint'
-    );
+    const PATH = 'Gedmo\\Mapping\\Annotation\\TreePath';
+
+    /**
+     * Annotation to specify path source class
+     */
+    const PATH_SOURCE = 'Gedmo\\Mapping\\Annotation\\TreePathSource';
+
+    /**
+     * Annotation to specify path hash class
+     */
+    const PATH_HASH = 'Gedmo\\Mapping\\Annotation\\TreePathHash';
+
+    /**
+     * Annotation to mark the field to be used to hold the lock time
+     */
+    const LOCK_TIME = 'Gedmo\\Mapping\\Annotation\\TreeLockTime';
 
     /**
      * List of tree strategies available
      *
      * @var array
      */
-    private $strategies = array(
+    protected $strategies = array(
         'nested',
-        'closure'
+        'closure',
+        'materializedPath'
     );
-
-    /**
-     * Annotation reader instance
-     *
-     * @var object
-     */
-    private $reader;
-
-    /**
-     * original driver if it is available
-     */
-    protected $_originalDriver = null;
-
-    /**
-     * {@inheritDoc}
-     */
-    public function setAnnotationReader($reader)
-    {
-        $this->reader = $reader;
-    }
 
     /**
      * {@inheritDoc}
      */
     public function readExtendedMetadata($meta, array &$config)
     {
-        $class = $meta->getReflectionClass();
-        if (!$class) {
-            // based on recent doctrine 2.3.0-DEV maybe will be fixed in some way
-            // this happens when running annotation driver in combination with
-            // static reflection services. This is not the nicest fix
-            $class = new \ReflectionClass($meta->name);
-        }
+        $validator = new Validator();
+        $class = $this->getMetaReflectionClass($meta);
         // class annotations
         if ($annot = $this->reader->getClassAnnotation($class, self::TREE)) {
             if (!in_array($annot->type, $this->strategies)) {
                 throw new InvalidMappingException("Tree type: {$annot->type} is not available.");
             }
             $config['strategy'] = $annot->type;
+            $config['activate_locking'] = $annot->activateLocking;
+            $config['locking_timeout'] = (int) $annot->lockingTimeout;
+
+            if ($config['locking_timeout'] < 1) {
+                throw new InvalidMappingException("Tree Locking Timeout must be at least of 1 second.");
+            }
         }
         if ($annot = $this->reader->getClassAnnotation($class, self::CLOSURE)) {
             if (!class_exists($annot->class)) {
@@ -135,7 +125,7 @@ class Annotation implements AnnotationDriverInterface
                 if (!$meta->hasField($field)) {
                     throw new InvalidMappingException("Unable to find 'left' - [{$field}] as mapped property in entity - {$meta->name}");
                 }
-                if (!$this->isValidField($meta, $field)) {
+                if (!$validator->isValidField($meta, $field)) {
                     throw new InvalidMappingException("Tree left field - [{$field}] type is not valid and must be 'integer' in class - {$meta->name}");
                 }
                 $config['left'] = $field;
@@ -146,7 +136,7 @@ class Annotation implements AnnotationDriverInterface
                 if (!$meta->hasField($field)) {
                     throw new InvalidMappingException("Unable to find 'right' - [{$field}] as mapped property in entity - {$meta->name}");
                 }
-                if (!$this->isValidField($meta, $field)) {
+                if (!$validator->isValidField($meta, $field)) {
                     throw new InvalidMappingException("Tree right field - [{$field}] type is not valid and must be 'integer' in class - {$meta->name}");
                 }
                 $config['right'] = $field;
@@ -165,8 +155,9 @@ class Annotation implements AnnotationDriverInterface
                 if (!$meta->hasField($field)) {
                     throw new InvalidMappingException("Unable to find 'root' - [{$field}] as mapped property in entity - {$meta->name}");
                 }
-                if (!$this->isValidField($meta, $field)) {
-                    throw new InvalidMappingException("Tree root field - [{$field}] type is not valid and must be 'integer' in class - {$meta->name}");
+
+                if (!$validator->isValidFieldForRoot($meta, $field)) {
+                    throw new InvalidMappingException("Tree root field - [{$field}] type is not valid and must be any of the 'integer' types or 'string' in class - {$meta->name}");
                 }
                 $config['root'] = $field;
             }
@@ -176,11 +167,69 @@ class Annotation implements AnnotationDriverInterface
                 if (!$meta->hasField($field)) {
                     throw new InvalidMappingException("Unable to find 'level' - [{$field}] as mapped property in entity - {$meta->name}");
                 }
-                if (!$this->isValidField($meta, $field)) {
+                if (!$validator->isValidField($meta, $field)) {
                     throw new InvalidMappingException("Tree level field - [{$field}] type is not valid and must be 'integer' in class - {$meta->name}");
                 }
                 $config['level'] = $field;
             }
+            // path
+            if ($pathAnnotation = $this->reader->getPropertyAnnotation($property, self::PATH)) {
+                $field = $property->getName();
+                if (!$meta->hasField($field)) {
+                    throw new InvalidMappingException("Unable to find 'path' - [{$field}] as mapped property in entity - {$meta->name}");
+                }
+                if (!$validator->isValidFieldForPath($meta, $field)) {
+                    throw new InvalidMappingException("Tree Path field - [{$field}] type is not valid. It must be string or text in class - {$meta->name}");
+                }
+                if (strlen($pathAnnotation->separator) > 1) {
+                    throw new InvalidMappingException("Tree Path field - [{$field}] Separator {$pathAnnotation->separator} is invalid. It must be only one character long.");
+                }
+                $config['path'] = $field;
+                $config['path_separator'] = $pathAnnotation->separator;
+                $config['path_append_id'] = $pathAnnotation->appendId;
+                $config['path_starts_with_separator'] = $pathAnnotation->startsWithSeparator;
+                $config['path_ends_with_separator'] = $pathAnnotation->endsWithSeparator;
+            }
+            // path source
+            if ($this->reader->getPropertyAnnotation($property, self::PATH_SOURCE)) {
+                $field = $property->getName();
+                if (!$meta->hasField($field)) {
+                    throw new InvalidMappingException("Unable to find 'path_source' - [{$field}] as mapped property in entity - {$meta->name}");
+                }
+                if (!$validator->isValidFieldForPathSource($meta, $field)) {
+                    throw new InvalidMappingException("Tree PathSource field - [{$field}] type is not valid. It can be any of the integer variants, double, float or string in class - {$meta->name}");
+                }
+                $config['path_source'] = $field;
+            }
+
+             // path hash
+            if ($this->reader->getPropertyAnnotation($property, self::PATH_HASH)) {
+                $field = $property->getName();
+                if (!$meta->hasField($field)) {
+                    throw new InvalidMappingException("Unable to find 'path_hash' - [{$field}] as mapped property in entity - {$meta->name}");
+                }
+                if (!$validator->isValidFieldForPathHash($meta, $field)) {
+                    throw new InvalidMappingException("Tree PathHash field - [{$field}] type is not valid. It can be any of the integer variants, double, float or string in class - {$meta->name}");
+                }
+                $config['path_hash'] = $field;
+
+            }
+            // lock time
+
+            if ($this->reader->getPropertyAnnotation($property, self::LOCK_TIME)) {
+                $field = $property->getName();
+                if (!$meta->hasField($field)) {
+                    throw new InvalidMappingException("Unable to find 'lock_time' - [{$field}] as mapped property in entity - {$meta->name}");
+                }
+                if (!$validator->isValidFieldForLockTime($meta, $field)) {
+                    throw new InvalidMappingException("Tree PathSource field - [{$field}] type is not valid. It must be \"date\" in class - {$meta->name}");
+                }
+                $config['lock_time'] = $field;
+            }
+        }
+
+        if (isset($config['activate_locking']) && $config['activate_locking'] && !isset($config['lock_time'])) {
+            throw new InvalidMappingException("You need to map a date field as the tree lock time field to activate locking support.");
         }
 
         if (!$meta->isMappedSuperclass && $config) {
@@ -189,81 +238,10 @@ class Annotation implements AnnotationDriverInterface
                     throw new InvalidMappingException("Tree does not support composite identifiers in class - {$meta->name}");
                 }
                 $method = 'validate' . ucfirst($config['strategy']) . 'TreeMetadata';
-                $this->$method($meta, $config);
+                $validator->$method($meta, $config);
             } else {
                 throw new InvalidMappingException("Cannot find Tree type for class: {$meta->name}");
             }
         }
-    }
-
-    /**
-     * Checks if $field type is valid
-     *
-     * @param object $meta
-     * @param string $field
-     * @return boolean
-     */
-    protected function isValidField($meta, $field)
-    {
-        $mapping = $meta->getFieldMapping($field);
-        return $mapping && in_array($mapping['type'], $this->validTypes);
-    }
-
-    /**
-     * Validates metadata for nested type tree
-     *
-     * @param object $meta
-     * @param array $config
-     * @throws InvalidMappingException
-     * @return void
-     */
-    private function validateNestedTreeMetadata($meta, array $config)
-    {
-        $missingFields = array();
-        if (!isset($config['parent'])) {
-            $missingFields[] = 'ancestor';
-        }
-        if (!isset($config['left'])) {
-            $missingFields[] = 'left';
-        }
-        if (!isset($config['right'])) {
-            $missingFields[] = 'right';
-        }
-        if ($missingFields) {
-            throw new InvalidMappingException("Missing properties: " . implode(', ', $missingFields) . " in class - {$meta->name}");
-        }
-    }
-
-    /**
-     * Validates metadata for closure type tree
-     *
-     * @param object $meta
-     * @param array $config
-     * @throws InvalidMappingException
-     * @return void
-     */
-    private function validateClosureTreeMetadata($meta, array $config)
-    {
-        $missingFields = array();
-        if (!isset($config['parent'])) {
-            $missingFields[] = 'ancestor';
-        }
-        if (!isset($config['closure'])) {
-            $missingFields[] = 'closure class';
-        }
-        if ($missingFields) {
-            throw new InvalidMappingException("Missing properties: " . implode(', ', $missingFields) . " in class - {$meta->name}");
-        }
-    }
-
-    /**
-     * Passes in the mapping read by original driver
-     *
-     * @param $driver
-     * @return void
-     */
-    public function setOriginalDriver($driver)
-    {
-        $this->_originalDriver = $driver;
     }
 }

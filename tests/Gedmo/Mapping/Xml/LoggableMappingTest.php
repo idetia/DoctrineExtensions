@@ -14,7 +14,6 @@ use Tool\BaseTestCaseOM;
  * These are mapping extension tests
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -62,11 +61,11 @@ class LoggableMappingTest extends BaseTestCaseOM
         $this->assertArrayHasKey('logEntryClass', $config);
         $this->assertEquals('Gedmo\Loggable\Entity\LogEntry', $config['logEntryClass']);
         $this->assertArrayHasKey('loggable', $config);
-        $this->assertEquals(true, $config['loggable']);
+        $this->assertTrue($config['loggable']);
 
         $this->assertArrayHasKey('versioned', $config);
-        $this->assertEquals(2, count($config['versioned']));
-        $this->assertTrue(in_array('title', $config['versioned']));
-        $this->assertTrue(in_array('status', $config['versioned']));
+        $this->assertCount(2, $config['versioned']);
+        $this->assertContains('title', $config['versioned']);
+        $this->assertContains('status', $config['versioned']);
     }
 }

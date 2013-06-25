@@ -11,7 +11,6 @@ use Doctrine\Common\Util\Debug,
  * These are tests for translatable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -21,22 +20,33 @@ class TranslatableIdentifierTest extends BaseTestCaseORM
     const TRANSLATION = 'Gedmo\\Translatable\\Entity\\Translation';
 
     private $testObjectId;
-    private $translationListener;
+    private $translatableListener;
 
     protected function setUp()
     {
         parent::setUp();
 
         $evm = new EventManager;
-        $this->translationListener = new TranslationListener();
-        $this->translationListener->setTranslatableLocale('en_us');
-        $this->translationListener->setDefaultLocale('en_us');
-        $evm->addEventSubscriber($this->translationListener);
+        $this->translatableListener = new TranslatableListener();
+        $this->translatableListener->setTranslatableLocale('en_us');
+        $this->translatableListener->setDefaultLocale('en_us');
+        $evm->addEventSubscriber($this->translatableListener);
 
+        $conn = array(
+                    'driver' => 'pdo_mysql',
+                    'host' => '127.0.0.1',
+                    'dbname' => 'test',
+                    'user' => 'root',
+                    'password' => 'nimda'
+        );
+        //$this->getMockCustomEntityManager($conn, $evm);
         $this->getMockSqliteEntityManager($evm);
     }
 
-    public function testStringIdentifier()
+    /**
+     * @test
+     */
+    function shouldHandleStringIdentifier()
     {
         $object = new StringIdentifier();
         $object->setTitle('title in en');
@@ -51,7 +61,7 @@ class TranslatableIdentifierTest extends BaseTestCaseORM
         $object = $this->em->find(self::FIXTURE, $this->testObjectId);
 
         $translations = $repo->findTranslations($object);
-        $this->assertEquals(count($translations), 0);
+        $this->assertCount(0, $translations);
 
         $object = $this->em->find(self::FIXTURE, $this->testObjectId);
         $object->setTitle('title in de');
@@ -73,29 +83,27 @@ class TranslatableIdentifierTest extends BaseTestCaseORM
         $this->assertEquals($this->testObjectId, $object->getUid());
 
         $translations = $repo->findTranslations($object);
-        $this->assertEquals(count($translations), 1);
+        $this->assertCount(1, $translations);
         $this->assertArrayHasKey('de_de', $translations);
 
         $this->assertArrayHasKey('title', $translations['de_de']);
         $this->assertEquals('title in de', $translations['de_de']['title']);
 
         // dql test object hydration
-        $q = $this->em->createQuery('SELECT si FROM ' . self::FIXTURE . ' si WHERE si.uid = :id');
-        $data = $q->execute(
-            array('id' => $this->testObjectId),
-            \Doctrine\ORM\Query::HYDRATE_OBJECT
-        );
-        $this->assertEquals(count($data), 1);
+        $q = $this->em
+            ->createQuery('SELECT si FROM ' . self::FIXTURE . ' si WHERE si.uid = :id')
+            ->setParameter('id', $this->testObjectId)
+            ->useResultCache(false)
+        ;
+        $data = $q->getResult();
+        $this->assertCount(1, $data);
         $object = $data[0];
         $this->assertEquals('title in en', $object->getTitle());
 
-        $this->translationListener->setTranslatableLocale('de_de');
-        $q = $this->em->createQuery('SELECT si FROM ' . self::FIXTURE . ' si WHERE si.uid = :id');
-        $data = $q->execute(
-            array('id' => $this->testObjectId),
-            \Doctrine\ORM\Query::HYDRATE_OBJECT
-        );
-        $this->assertEquals(count($data), 1);
+        $this->em->clear(); // based on 2.3.0 it caches in identity map
+        $this->translatableListener->setTranslatableLocale('de_de');
+        $data = $q->getResult();
+        $this->assertCount(1, $data);
         $object = $data[0];
         $this->assertEquals('title in de', $object->getTitle());
     }

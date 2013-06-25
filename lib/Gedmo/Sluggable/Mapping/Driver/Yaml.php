@@ -13,9 +13,6 @@ use Gedmo\Mapping\Driver\File,
  * extension.
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Sluggable.Mapping.Driver
- * @subpackage Yaml
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Yaml extends File implements Driver
@@ -36,6 +33,7 @@ class Yaml extends File implements Driver
         'text',
         'integer',
         'hash',
+        'int',
     );
 
     /**
@@ -89,11 +87,21 @@ class Yaml extends File implements Driver
                         $config['slugs'][$field]['unique'] = isset($slug['unique']) ?
                             (bool)$slug['unique'] : true;
 
+                        $config['slugs'][$field]['unique_base'] = isset($slug['unique_base']) ?
+                            $slug['unique_base'] : null;
+
                         $config['slugs'][$field]['separator'] = isset($slug['separator']) ?
                             (string)$slug['separator'] : '-';
 
-                        if ($meta->isIdentifier($field) && !$config['slugs'][$field]['unique']) {
+                        if (!$meta->isMappedSuperclass && $meta->isIdentifier($field) && !$config['slugs'][$field]['unique']) {
                             throw new InvalidMappingException("Identifier field - [{$field}] slug must be unique in order to maintain primary key in class - {$meta->name}");
+                        }
+                        $ubase = $config['slugs'][$field]['unique_base'];
+                        if ($config['slugs'][$field]['unique'] === false && $ubase) {
+                            throw new InvalidMappingException("Slug annotation [unique_base] can not be set if unique is unset or 'false'");
+                        }
+                        if ($ubase && !$this->isValidField($meta, $ubase) && !$meta->hasAssociation($ubase)) {
+                            throw new InvalidMappingException("Unable to find [{$ubase}] as mapped property in entity - {$meta->name}");
                         }
                     }
                 }
@@ -106,7 +114,7 @@ class Yaml extends File implements Driver
      */
     protected function _loadMappingFile($file)
     {
-        return \Symfony\Component\Yaml\Yaml::load($file);
+        return \Symfony\Component\Yaml\Yaml::parse($file);
     }
 
     /**

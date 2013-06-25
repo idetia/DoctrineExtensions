@@ -13,9 +13,6 @@ use Gedmo\Exception\UnsupportedObjectManager;
  * manipulation
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Tool.Wrapper
- * @subpackage EntityWrapper
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 abstract class AbstractWrapper implements WrapperInterface
@@ -49,13 +46,14 @@ abstract class AbstractWrapper implements WrapperInterface
     private static $wrappedObjectReferences;
 
     /**
-     * Wrapp object factory method
+     * Wrap object factory method
      *
      * @param object $object
      * @param \Doctrine\Common\Persistence\ObjectManager $om
+     * @throws \Gedmo\Exception\UnsupportedObjectManager
      * @return \Gedmo\Tool\WrapperInterface
      */
-    public static function wrapp($object, ObjectManager $om)
+    public static function wrap($object, ObjectManager $om)
     {
         $oid = spl_object_hash($object);
         if (!isset(self::$wrappedObjectReferences[$oid])) {
@@ -68,6 +66,11 @@ abstract class AbstractWrapper implements WrapperInterface
             }
         }
         return self::$wrappedObjectReferences[$oid];
+    }
+
+    public static function clear()
+    {
+        self::$wrappedObjectReferences = array();
     }
 
     /**

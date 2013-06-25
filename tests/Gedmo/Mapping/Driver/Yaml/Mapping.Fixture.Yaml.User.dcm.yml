@@ -22,6 +22,13 @@ Mapping\Fixture\Yaml\User:
       length: 128
       gedmo:
         - translatable
+    company:
+      type: string
+      length: 128
+      nullable: true
+      gedmo:
+          translatable:
+              fallback: true
   indexes:
     search_idx:
       columns: username

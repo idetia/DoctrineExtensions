@@ -6,13 +6,13 @@ use Doctrine\Common\Util\Debug,
     Doctrine\ORM\Mapping\Driver\YamlDriver,
     Doctrine\ORM\Mapping\Driver\DriverChain,
     Mapping\Fixture\Yaml\Category,
-    Gedmo\Mapping\ExtensionMetadataFactory;
+    Gedmo\Mapping\ExtensionMetadataFactory,
+    Gedmo\Tree\TreeListener;
 
 /**
  * These are mapping tests for tree extension
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -20,7 +20,9 @@ class TreeMappingTest extends \PHPUnit_Framework_TestCase
 {
     const TEST_YAML_ENTITY_CLASS = 'Mapping\Fixture\Yaml\Category';
     const YAML_CLOSURE_CATEGORY = 'Mapping\Fixture\Yaml\ClosureCategory';
+    const YAML_MATERIALIZED_PATH_CATEGORY = 'Mapping\Fixture\Yaml\MaterializedPathCategory';
     private $em;
+    private $listener;
 
     public function setUp()
     {
@@ -49,6 +51,7 @@ class TreeMappingTest extends \PHPUnit_Framework_TestCase
             'memory' => true,
         );
 
+        $this->listener = new TreeListener;
         $evm = new \Doctrine\Common\EventManager();
         $evm->addEventSubscriber(new TreeListener());
         $this->em = \Doctrine\ORM\EntityManager::create($conn, $config, $evm);
@@ -109,5 +112,30 @@ class TreeMappingTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('closure', $config['strategy']);
         $this->assertArrayHasKey('closure', $config);
         $this->assertEquals('Tree\\Fixture\\Closure\\CategoryClosure', $config['closure']);
+    }
+
+    public function testYamlMaterializedPathMapping()
+    {
+        if (!extension_loaded('apc') || !ini_get('apc.enable_cli')) {
+            $this->markTestSkipped('APC extension is not loaded.');
+        }
+
+        $meta = $this->em->getClassMetadata(self::YAML_MATERIALIZED_PATH_CATEGORY);
+        $config = $this->listener->getConfiguration($this->em, $meta->name);
+
+        $this->assertArrayHasKey('strategy', $config);
+        $this->assertEquals('materializedPath', $config['strategy']);
+        $this->assertArrayHasKey('parent', $config);
+        $this->assertEquals('parent', $config['parent']);
+        $this->assertArrayHasKey('activate_locking', $config);
+        $this->assertTrue($config['activate_locking']);
+        $this->assertArrayHasKey('locking_timeout', $config);
+        $this->assertEquals(3, $config['locking_timeout']);
+        $this->assertArrayHasKey('level', $config);
+        $this->assertEquals('level', $config['level']);
+        $this->assertArrayHasKey('path', $config);
+        $this->assertEquals('path', $config['path']);
+        $this->assertArrayHasKey('path_separator', $config);
+        $this->assertEquals(',', $config['path_separator']);
     }
 }

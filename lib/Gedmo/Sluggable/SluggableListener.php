@@ -16,13 +16,11 @@ use Doctrine\Common\Persistence\ObjectManager;
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
  * @author Klein Florian <florian.klein@free.fr>
- * @subpackage SluggableListener
- * @package Gedmo.Sluggable
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class SluggableListener extends MappedEventSubscriber
 {
+
     /**
      * The power exponent to jump
      * the slug unique number by tens.
@@ -34,9 +32,16 @@ class SluggableListener extends MappedEventSubscriber
     /**
      * Transliteration callback for slugs
      *
-     * @var array
+     * @var callable
      */
     protected $transliterator = array('Gedmo\Sluggable\Util\Urlizer', 'transliterate');
+
+    /**
+     * Urlize callback for slugs
+     *
+     * @var callable
+     */
+    private $urlizer = array('Gedmo\Sluggable\Util\Urlizer', 'urlize');
 
     /**
      * List of inserted slugs for each object class.
@@ -53,6 +58,13 @@ class SluggableListener extends MappedEventSubscriber
      * @var array
      */
     protected $handlers = array();
+
+    /**
+     * List of filters which are manipulated when slugs are generated
+     *
+     * @var array
+     */
+    private $managedFilters = array();
 
     /**
      * Specifies the list of events to listen
@@ -72,7 +84,9 @@ class SluggableListener extends MappedEventSubscriber
      * Set the transliteration callable method
      * to transliterate slugs
      *
-     * @param mixed $callable
+     * @param callable $callable
+     * @throws \Gedmo\Exception\InvalidArgumentException
+     * @return void
      */
     public function setTransliterator($callable)
     {
@@ -83,6 +97,20 @@ class SluggableListener extends MappedEventSubscriber
     }
 
     /**
+     * Set the urlization callable method
+     * to urlize slugs
+     *
+     * @param callable $callable
+     */
+    public function setUrlizer($callable)
+    {
+        if (!is_callable($callable)) {
+            throw new \Gedmo\Exception\InvalidArgumentException('Invalid urlizer callable parameter given');
+        }
+        $this->urlizer = $callable;
+    }
+
+    /**
      * Get currently used transliterator callable
      *
      * @return callable
@@ -90,6 +118,37 @@ class SluggableListener extends MappedEventSubscriber
     public function getTransliterator()
     {
         return $this->transliterator;
+    }
+
+    /**
+     * Get currently used urlizer callable
+     *
+     * @return callable
+     */
+    public function getUrlizer()
+    {
+        return $this->urlizer;
+    }
+
+    /**
+     * Enables or disables the given filter when slugs are generated
+     *
+     * @param string $name
+     * @param bool $disable True by default
+     */
+    public function addManagedFilter($name, $disable = true)
+    {
+        $this->managedFilters[$name] = array('disabled' => $disable);
+    }
+
+    /**
+     * Removes a filter from the managed set
+     *
+     * @param string $name
+     */
+    public function removeManagedFilter($name)
+    {
+        unset($this->managedFilters[$name]);
     }
 
     /**
@@ -135,9 +194,12 @@ class SluggableListener extends MappedEventSubscriber
      */
     public function onFlush(EventArgs $args)
     {
+        $this->persistedSlugs = array();
         $ea = $this->getEventAdapter($args);
         $om = $ea->getObjectManager();
         $uow = $om->getUnitOfWork();
+
+        $this->manageFiltersBeforeGeneration($om);
 
         // process all objects being inserted, using scheduled insertions instead
         // of prePersist in case if record will be changed before flushing this will
@@ -149,7 +211,7 @@ class SluggableListener extends MappedEventSubscriber
                 $this->generateSlug($ea, $object);
                 foreach ($config['slugs'] as $slugField => $options) {
                     $slug = $meta->getReflectionProperty($slugField)->getValue($object);
-                    $this->persistedSlugs[$config['useObjectClass']][$slugField][] = $slug;
+                    $this->persistedSlugs[$ea->getRootObjectClass($meta)][$slugField][] = $slug;
                 }
             }
         }
@@ -157,14 +219,16 @@ class SluggableListener extends MappedEventSubscriber
         // event listeners be nested together
         foreach ($ea->getScheduledObjectUpdates($uow) as $object) {
             $meta = $om->getClassMetadata(get_class($object));
-            if ($config = $this->getConfiguration($om, $meta->name)) {
+            if (($config = $this->getConfiguration($om, $meta->name)) && !$uow->isScheduledForInsert($object)) {
+                $this->generateSlug($ea, $object);
                 foreach ($config['slugs'] as $slugField => $options) {
-                    if ($options['updatable']) {
-                        $this->generateSlug($ea, $object);
-                    }
+                    $slug = $meta->getReflectionProperty($slugField)->getValue($object);
+                    $this->persistedSlugs[$ea->getRootObjectClass($meta)][$slugField][] = $slug;
                 }
             }
         }
+
+        $this->manageFiltersAfterGeneration($om);
     }
 
     /**
@@ -204,28 +268,37 @@ class SluggableListener extends MappedEventSubscriber
         $meta = $om->getClassMetadata(get_class($object));
         $uow = $om->getUnitOfWork();
         $changeSet = $ea->getObjectChangeSet($uow, $object);
+        $isInsert = $uow->isScheduledForInsert($object);
         $config = $this->getConfiguration($om, $meta->name);
         foreach ($config['slugs'] as $slugField => $options) {
             $hasHandlers = count($options['handlers']);
             $options['useObjectClass'] = $config['useObjectClass'];
-            $fields = $options['fields'];
-            //$slugFieldConfig = $config['slugFields'][$slugField];
             // collect the slug from fields
-            $slug = '';
+            $slug = $meta->getReflectionProperty($slugField)->getValue($object);
+            // if slug should not be updated, skip it
+            if (!$options['updatable'] && !$isInsert && (!isset($changeSet[$slugField]) || $slug === '__id__')) {
+                continue;
+            }
+            // must fetch the old slug from changeset, since $object holds the new version
+            $oldSlug = isset($changeSet[$slugField]) ? $changeSet[$slugField][0] : $slug;
             $needToChangeSlug = false;
-            foreach ($options['fields'] as $sluggableField) {
-                if (isset($changeSet[$sluggableField])) {
-                    $needToChangeSlug = true;
+            // if slug is null or set to empty, regenerate it, or needs an update
+            if (empty($slug) || $slug === '__id__' || !isset($changeSet[$slugField])) {
+                $slug = '';
+                foreach ($options['fields'] as $sluggableField) {
+                    if (isset($changeSet[$sluggableField]) || isset($changeSet[$slugField])) {
+                        $needToChangeSlug = true;
+                    }
+                    $slug .= $meta->getReflectionProperty($sluggableField)->getValue($object) . ' ';
                 }
-                $slug .= $meta->getReflectionProperty($sluggableField)->getValue($object) . ' ';
+            } else {
+                // slug was set manually
+                $needToChangeSlug = true;
             }
             // notify slug handlers --> onChangeDecision
             if ($hasHandlers) {
                 foreach ($options['handlers'] as $class => $handlerOptions) {
-                    $this
-                        ->getHandler($class)
-                        ->onChangeDecision($ea, $options, $object, $slug, $needToChangeSlug)
-                    ;
+                    $this->getHandler($class)->onChangeDecision($ea, $options, $object, $slug, $needToChangeSlug);
                 }
             }
             // if slug is changed, do further processing
@@ -236,29 +309,48 @@ class SluggableListener extends MappedEventSubscriber
                 }
 
                 // notify slug handlers --> postSlugBuild
+                $urlized = false;
                 if ($hasHandlers) {
                     foreach ($options['handlers'] as $class => $handlerOptions) {
-                        $this
-                            ->getHandler($class)
-                            ->postSlugBuild($ea, $options, $object, $slug)
-                        ;
+                        $this->getHandler($class)->postSlugBuild($ea, $options, $object, $slug);
+                        if ($this->getHandler($class)->handlesUrlization()) {
+                            $urlized = true;
+                        }
                     }
                 }
 
                 // build the slug
+                // Step 1: transliteration, changing 北京 to 'Bei Jing'
                 $slug = call_user_func_array(
                     $this->transliterator,
                     array($slug, $options['separator'], $object)
                 );
-                $slug = Util\Urlizer::urlize($slug, $options['separator']);
+                // Step 2: urlization (replace spaces by '-' etc...)
+                if(!$urlized){
+                    $slug = call_user_func($this->urlizer, $slug, $options['separator']);
+                }
                 // stylize the slug
                 switch ($options['style']) {
                     case 'camel':
-                        $slug = preg_replace_callback(
-                            '@^[a-z]|' . $options['separator'] . '[a-z]@smi',
-                            create_function('$m', 'return strtoupper($m[0]);'),
-                            $slug
-                        );
+                        $slug = preg_replace_callback('/^[a-z]|' . $options['separator'] . '[a-z]/smi', function ($m) {
+                            return strtoupper($m[0]);
+                        }, $slug);
+                        break;
+
+                    case 'lower':
+                        if (function_exists('mb_strtolower')) {
+                            $slug = mb_strtolower($slug);
+                        } else {
+                            $slug = strtolower($slug);
+                        }
+                        break;
+
+                    case 'upper':
+                        if (function_exists('mb_strtoupper')) {
+                            $slug = mb_strtoupper($slug);
+                        } else {
+                            $slug = strtoupper($slug);
+                        }
                         break;
 
                     default:
@@ -282,14 +374,13 @@ class SluggableListener extends MappedEventSubscriber
                 // notify slug handlers --> onSlugCompletion
                 if ($hasHandlers) {
                     foreach ($options['handlers'] as $class => $handlerOptions) {
-                        $this
-                            ->getHandler($class)
-                            ->onSlugCompletion($ea, $options, $object, $slug)
-                        ;
+                        $this->getHandler($class)->onSlugCompletion($ea, $options, $object, $slug);
                     }
                 }
                 // set the final slug
                 $meta->getReflectionProperty($slugField)->setValue($object, $slug);
+                $uow->propertyChanged($object, $slugField, $oldSlug, $slug);
+
                 // recompute changeset
                 $ea->recomputeSingleObjectChangeSet($uow, $meta, $object);
             }
@@ -312,8 +403,8 @@ class SluggableListener extends MappedEventSubscriber
         $meta = $om->getClassMetadata(get_class($object));
         // load similar slugs
         $result = array_merge(
-            (array)$ea->getSimilarSlugs($object, $meta, $config, $preferedSlug),
-            (array)$this->getSimilarPersistedSlugs($config['useObjectClass'], $preferedSlug, $config['slug'])
+            (array) $ea->getSimilarSlugs($object, $meta, $config, $preferedSlug),
+            (array) $this->getSimilarPersistedSlugs($ea->getRootObjectClass($meta), $preferedSlug, $config['slug'])
         );
         // leave only right slugs
         if (!$recursing) {
@@ -340,6 +431,9 @@ class SluggableListener extends MappedEventSubscriber
                     $mapping['length'] - (strlen($i) + strlen($config['separator']))
                 );
                 $this->exponent = strlen($i) - 1;
+                if(substr($generatedSlug,-strlen($config['separator'])) == $config['separator']) {
+                    $generatedSlug = substr($generatedSlug,0,strlen($generatedSlug) - strlen($config['separator']));
+                }
                 $generatedSlug = $this->makeUniqueSlug($ea, $object, $generatedSlug, true, $config);
             }
             $preferedSlug = $generatedSlug;
@@ -387,4 +481,64 @@ class SluggableListener extends MappedEventSubscriber
             }
         }
     }
+
+    /**
+     * @param \Doctrine\Common\Persistence\ObjectManager $om
+     */
+    private function manageFiltersBeforeGeneration(ObjectManager $om)
+    {
+        $collection = $this->getFilterCollectionFromObjectManager($om);
+
+        $enabledFilters = array_keys($collection->getEnabledFilters());
+
+        // set each managed filter to desired status
+        foreach ($this->managedFilters as $name => &$config) {
+            $enabled = in_array($name, $enabledFilters);
+            $config['previouslyEnabled'] = $enabled;
+
+            if ($config['disabled']) {
+                if ($enabled) {
+                    $collection->disable($name);
+                }
+            } else {
+                $collection->enable($name);
+            }
+        }
+    }
+
+    /**
+     * @param \Doctrine\Common\Persistence\ObjectManager $om
+     */
+    private function manageFiltersAfterGeneration(ObjectManager $om)
+    {
+        $collection = $this->getFilterCollectionFromObjectManager($om);
+
+        // Restore managed filters to their original status
+        foreach ($this->managedFilters as $name => &$config) {
+            if ($config['previouslyEnabled'] === true) {
+                $collection->enable($name);
+            }
+
+            unset($config['previouslyEnabled']);
+        }
+    }
+
+    /**
+     * Retrieves a FilterCollection instance from the given ObjectManager.
+     *
+     * @param \Doctrine\Common\Persistence\ObjectManager $om
+     * @throws \Gedmo\Exception\InvalidArgumentException
+     * @return mixed
+     */
+    private function getFilterCollectionFromObjectManager(ObjectManager $om)
+    {
+        if (is_callable(array($om, 'getFilters'))) {
+            return $om->getFilters();
+        } else if (is_callable(array($om, 'getFilterCollection'))) {
+            return $om->getFilterCollection();
+        }
+
+        throw new \Gedmo\Exception\InvalidArgumentException("ObjectManager does not support filters");
+    }
+
 }

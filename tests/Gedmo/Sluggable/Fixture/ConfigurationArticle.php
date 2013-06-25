@@ -25,7 +25,7 @@ class ConfigurationArticle implements Sluggable
     private $code;
 
     /**
-     * @Gedmo\Slug(updatable=false, unique=false, fields={"title", "code"})
+     * @Gedmo\Slug(updatable=false, unique=false, unique_base=null, fields={"title", "code"})
      * @ORM\Column(name="slug", type="string", length=32)
      */
     private $slug;
@@ -53,6 +53,11 @@ class ConfigurationArticle implements Sluggable
     public function getCode()
     {
         return $this->code;
+    }
+
+    public function setSlug($slug)
+    {
+        $this->slug = $slug;
     }
 
     public function getSlug()

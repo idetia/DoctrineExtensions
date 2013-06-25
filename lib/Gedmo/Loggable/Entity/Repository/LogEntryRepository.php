@@ -11,9 +11,6 @@ use Gedmo\Loggable\LoggableListener;
  * to interact with log entries.
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo\Loggable\Entity\Repository
- * @subpackage LogEntryRepository
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class LogEntryRepository extends EntityRepository
@@ -112,7 +109,7 @@ class LogEntryRepository extends EntityRepository
                 throw new \Gedmo\Exception\UnexpectedValueException('Could not fully revert the entity to version: '.$version);
             }*/
         } else {
-            throw new \Gedmo\Exception\UnexpectedValueException('Count not find any log entries under version: '.$version);
+            throw new \Gedmo\Exception\UnexpectedValueException('Could not find any log entries under version: '.$version);
         }
     }
 

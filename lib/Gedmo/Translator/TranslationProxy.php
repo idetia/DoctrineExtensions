@@ -8,7 +8,6 @@ use Doctrine\Common\Collections\Collection;
  * Proxy class for Entity/Document translations.
  *
  * @author  Konstantin Kudryashov <ever.zet@gmail.com>
- * @link    http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class TranslationProxy
@@ -17,6 +16,9 @@ class TranslationProxy
     protected $translatable;
     protected $properties = array();
     protected $class;
+    /**
+     * @var Collection|TranslationInterface[]
+     */
     protected $coll;
 
     /**
@@ -27,6 +29,7 @@ class TranslationProxy
      * @param   array       $properties     object properties to translate
      * @param   string      $class          translation entity|document class
      * @param   Collection  $coll           translations collection
+     * @throws \InvalidArgumentException Translation class doesn't implement TranslationInterface
      */
     public function __construct($translatable, $locale, array $properties, $class, Collection $coll)
     {
@@ -49,7 +52,7 @@ class TranslationProxy
     {
         $matches = array();
         if (preg_match('/^(set|get)(.*)$/', $method, $matches)) {
-            $property = strtolower($matches[2]);
+            $property = lcfirst($matches[2]);
 
             if (in_array($property, $this->properties)) {
                 switch ($matches[1]) {
@@ -97,6 +100,11 @@ class TranslationProxy
         }
 
         $this->translatable->$property = $value;
+    }
+    
+    public function __isset($property)
+    {
+        return in_array($property, $this->properties);
     }
 
     /**
@@ -152,6 +160,7 @@ class TranslationProxy
             }
         }
 
+        /** @var TranslationInterface $translation */
         $translation = new $this->class;
         $translation->setTranslatable($this->translatable);
         $translation->setProperty($property);

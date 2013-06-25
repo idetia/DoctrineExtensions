@@ -5,15 +5,13 @@ namespace Gedmo\Sluggable\Mapping\Event\Adapter;
 use Gedmo\Mapping\Event\Adapter\ORM as BaseAdapterORM;
 use Doctrine\ORM\Query;
 use Gedmo\Sluggable\Mapping\Event\SluggableAdapter;
+use Gedmo\Tool\Wrapper\AbstractWrapper;
 
 /**
  * Doctrine event adapter for ORM adapted
  * for sluggable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo\Sluggable\Mapping\Event\Adapter
- * @subpackage ORM
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 final class ORM extends BaseAdapterORM implements SluggableAdapter
@@ -24,26 +22,31 @@ final class ORM extends BaseAdapterORM implements SluggableAdapter
     public function getSimilarSlugs($object, $meta, array $config, $slug)
     {
         $em = $this->getObjectManager();
+        $wrapped = AbstractWrapper::wrap($object, $em);
         $qb = $em->createQueryBuilder();
         $qb->select('rec.' . $config['slug'])
             ->from($config['useObjectClass'], 'rec')
             ->where($qb->expr()->like(
                 'rec.' . $config['slug'],
                 $qb->expr()->literal($slug . '%'))
-            );
+            )
+        ;
+
+        // use the unique_base to restrict the uniqueness check
+        if ($config['unique'] && isset($config['unique_base'])) {
+            $qb->andWhere('rec.' . $config['unique_base'] . ' = :unique_base')
+                ->setParameter(':unique_base', $wrapped->getPropertyValue($config['unique_base']))
+            ;
+        }
+
         // include identifiers
-        $entityIdentifiers = $this->extractIdentifier($em, $object, false);
-        $parameters = array();
-        foreach ((array)$entityIdentifiers as $field => $value) {
-            if (strlen($value) && !$meta->isIdentifier($config['slug'])) {
-                $qb->andWhere('rec.' . $field . ' <> :' . $field);
-                $parameters[$field] = $value;
+        foreach ((array)$wrapped->getIdentifier(false) as $id => $value) {
+            if (!$meta->isIdentifier($config['slug'])) {
+                $qb->andWhere($qb->expr()->neq('rec.' . $id, ':' . $id));
+                $qb->setParameter($id, $value);
             }
         }
         $q = $qb->getQuery();
-        if ($parameters) {
-            $q->setParameters($parameters);
-        }
         $q->setHydrationMode(Query::HYDRATE_ARRAY);
         return $q->execute();
     }

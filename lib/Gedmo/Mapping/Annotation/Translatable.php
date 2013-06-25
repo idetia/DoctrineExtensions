@@ -11,13 +11,11 @@ use Doctrine\Common\Annotations\Annotation;
  * @Target("PROPERTY")
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping.Annotation
- * @subpackage Translatable
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 final class Translatable extends Annotation
 {
-
+    /** @var boolean */
+    public $fallback;
 }
 

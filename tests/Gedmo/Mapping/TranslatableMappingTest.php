@@ -12,7 +12,6 @@ use Doctrine\Common\Util\Debug,
  * These are mapping tests for translatable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -43,7 +42,7 @@ class TranslatableMappingTest extends \PHPUnit_Framework_TestCase
         //$config->setSQLLogger(new \Doctrine\DBAL\Logging\EchoSQLLogger());
 
         $evm = new \Doctrine\Common\EventManager();
-        $this->translatableListener = new TranslationListener();
+        $this->translatableListener = new TranslatableListener();
         $this->translatableListener->setTranslatableLocale('en_us');
         $evm->addEventSubscriber($this->translatableListener);
         $this->em = \Doctrine\ORM\EntityManager::create($conn, $config, $evm);
@@ -60,10 +59,12 @@ class TranslatableMappingTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('translationClass', $config);
         $this->assertEquals('Translatable\Fixture\PersonTranslation', $config['translationClass']);
         $this->assertArrayHasKey('fields', $config);
-        $this->assertEquals(2, count($config['fields']));
+        $this->assertCount(3, $config['fields']);
         $this->assertEquals('password', $config['fields'][0]);
         $this->assertEquals('username', $config['fields'][1]);
         $this->assertArrayHasKey('locale', $config);
         $this->assertEquals('localeField', $config['locale']);
+        $this->assertCount(1, $config['fallback']);
+        $this->assertTrue($config['fallback']['company']);
     }
 }

@@ -8,11 +8,15 @@ use Doctrine\ORM\Mapping\Driver\AnnotationDriver;
 use Doctrine\ORM\EntityManager;
 use Doctrine\Common\EventManager;
 use Doctrine\ORM\Tools\SchemaTool;
-use Gedmo\Translatable\TranslationListener;
+use Doctrine\ORM\Configuration;
+use Gedmo\Translatable\TranslatableListener;
 use Gedmo\Sluggable\SluggableListener;
 use Gedmo\Tree\TreeListener;
 use Gedmo\Timestampable\TimestampableListener;
 use Gedmo\Loggable\LoggableListener;
+use Gedmo\SoftDeleteable\SoftDeleteableListener;
+use Doctrine\ORM\Mapping\DefaultQuoteStrategy;
+use Doctrine\ORM\Mapping\DefaultNamingStrategy;
 
 /**
  * Base test case contains common mock objects
@@ -20,8 +24,6 @@ use Gedmo\Loggable\LoggableListener;
  * ORM object manager
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo
- * @subpackage BaseTestCase
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -53,14 +55,14 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
      * @param EventManager $evm
      * @return EntityManager
      */
-    protected function getMockSqliteEntityManager(EventManager $evm = null)
+    protected function getMockSqliteEntityManager(EventManager $evm = null, Configuration $config = null)
     {
         $conn = array(
             'driver' => 'pdo_sqlite',
             'memory' => true,
         );
 
-        $config = $this->getMockAnnotatedConfig();
+        $config = null === $config ? $this->getMockAnnotatedConfig() : $config;
         $em = EntityManager::create($conn, $config, $evm ?: $this->getEventManager());
 
         $schema = array_map(function($class) use ($em) {
@@ -70,6 +72,7 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
         $schemaTool = new SchemaTool($em);
         $schemaTool->dropSchema(array());
         $schemaTool->createSchema($schema);
+
         return $this->em = $em;
     }
 
@@ -94,6 +97,7 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
         $schemaTool = new SchemaTool($em);
         $schemaTool->dropSchema(array());
         $schemaTool->createSchema($schema);
+
         return $this->em = $em;
     }
 
@@ -118,6 +122,7 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
 
         $config = $this->getMockAnnotatedConfig();
         $this->em = EntityManager::create($conn, $config);
+
         return $this->em;
     }
 
@@ -193,8 +198,9 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
         $evm->addEventSubscriber(new TreeListener);
         $evm->addEventSubscriber(new SluggableListener);
         $evm->addEventSubscriber(new LoggableListener);
-        $evm->addEventSubscriber(new TranslationListener);
+        $evm->addEventSubscriber(new TranslatableListener);
         $evm->addEventSubscriber(new TimestampableListener);
+        $evm->addEventSubscriber(new SoftDeleteableListener);
         return $evm;
     }
 
@@ -203,9 +209,24 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
      *
      * @return Doctrine\ORM\Configuration
      */
-    private function getMockAnnotatedConfig()
+    protected function getMockAnnotatedConfig()
     {
-        $config = $this->getMock('Doctrine\ORM\Configuration');
+        // We need to mock every method except the ones which
+        // handle the filters
+        $configurationClass = 'Doctrine\ORM\Configuration';
+        $refl = new \ReflectionClass($configurationClass);
+        $methods = $refl->getMethods();
+
+        $mockMethods = array();
+
+        foreach ($methods as $method) {
+            if ($method->name !== 'addFilter' && $method->name !== 'getFilterClassName') {
+                $mockMethods[] = $method->name;
+            }
+        }
+
+        $config = $this->getMock($configurationClass, $mockMethods);
+
         $config
             ->expects($this->once())
             ->method('getProxyDir')
@@ -242,6 +263,18 @@ abstract class BaseTestCaseORM extends \PHPUnit_Framework_TestCase
             ->expects($this->any())
             ->method('getDefaultRepositoryClassName')
             ->will($this->returnValue('Doctrine\\ORM\\EntityRepository'))
+        ;
+
+        $config
+            ->expects($this->any())
+            ->method('getQuoteStrategy')
+            ->will($this->returnValue(new DefaultQuoteStrategy()))
+        ;
+
+        $config
+            ->expects($this->any())
+            ->method('getNamingStrategy')
+            ->will($this->returnValue(new DefaultNamingStrategy()))
         ;
 
         return $config;

@@ -12,7 +12,6 @@ use Doctrine\Common\Util\Debug,
  * These are tests for translatable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -32,7 +31,7 @@ class MixedValueTranslationTest extends BaseTestCaseORM
         }
 
         $evm = new EventManager;
-        $this->translatableListener = new TranslationListener();
+        $this->translatableListener = new TranslatableListener();
         $this->translatableListener->setTranslatableLocale('en_us');
         $this->translatableListener->setDefaultLocale('en_us');        
         $evm->addEventSubscriber($this->translatableListener);
@@ -70,7 +69,7 @@ class MixedValueTranslationTest extends BaseTestCaseORM
         $transRepo = $this->em->getRepository(self::TRANSLATION);
         $translations = $transRepo->findTranslations($mixed);
 
-        $this->assertEquals(1, count($translations));
+        $this->assertCount(1, $translations);
         $this->assertArrayHasKey('de_de', $translations);
         $cust = unserialize($translations['de_de']['cust']);
 

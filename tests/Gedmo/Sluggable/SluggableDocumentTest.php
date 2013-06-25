@@ -10,7 +10,6 @@ use Sluggable\Fixture\Document\Article;
  * These are tests for sluggable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Sluggable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -57,7 +56,7 @@ class SluggableDocumentTest extends BaseTestCaseMongoODM
             $this->dm->persist($article);
             $this->dm->flush();
             $this->dm->clear();
-            $this->assertEquals($article->getSlug(), 'my-title-the-code-' . ($i + 1));
+            $this->assertEquals('my-title-the-code-' . ($i + 1), $article->getSlug());
         }
     }
 

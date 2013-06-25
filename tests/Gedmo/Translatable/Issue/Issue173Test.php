@@ -14,7 +14,6 @@ use Translatable\Fixture\Issue173\Product;
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
  * @contributor Oscar Balladares liebegrube@gmail.com https://github.com/oscarballadares
- * @package Gedmo.Translatable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -32,7 +31,7 @@ class Issue173Test extends BaseTestCaseORM
         parent::setUp();
 
         $evm = new EventManager;
-        $this->translatableListener = new TranslationListener();
+        $this->translatableListener = new TranslatableListener();
         $this->translatableListener->setTranslatableLocale('en');
         $this->translatableListener->setDefaultLocale('en');
         $evm->addEventSubscriber($this->translatableListener);

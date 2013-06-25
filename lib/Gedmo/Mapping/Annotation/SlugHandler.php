@@ -20,19 +20,12 @@ use Doctrine\Common\Annotations\Annotation;
  * }, separator="-", updatable=false)
  *
  * @Annotation
- * @Target("ANNOTATION")
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping.Annotation
- * @subpackage SlugHandler
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 final class SlugHandler extends Annotation
 {
-    /** @var string @required */
-    public $class;
-    /** @var array<Gedmo\Mapping\Annotation\SlugHandlerOption> */
+    public $class = '';
     public $options = array();
 }
-

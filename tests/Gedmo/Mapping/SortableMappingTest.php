@@ -14,7 +14,6 @@ use Tool\BaseTestCaseOM;
  * These are mapping tests for sortable extension
  *
  * @author Lukas Botsch <lukas.botsch@gmail.com>
- * @package Gedmo.Mapping
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -61,7 +60,7 @@ class SortableMappingTest extends BaseTestCaseOM
         $this->assertArrayHasKey('position', $config);
         $this->assertEquals('position', $config['position']);
         $this->assertArrayHasKey('groups', $config);
-        $this->assertEquals(3, count($config['groups']));
+        $this->assertCount(3, $config['groups']);
         $this->assertEquals('grouping', $config['groups'][0]);
         $this->assertEquals('sortable_group', $config['groups'][1]);
         $this->assertEquals('sortable_groups', $config['groups'][2]);

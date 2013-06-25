@@ -12,9 +12,6 @@ use Gedmo\Tool\Wrapper\AbstractWrapper;
  * for sluggable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo\Sluggable\Mapping\Event\Adapter
- * @subpackage ODM
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 final class ODM extends BaseAdapterODM implements SluggableAdapter
@@ -25,12 +22,22 @@ final class ODM extends BaseAdapterODM implements SluggableAdapter
     public function getSimilarSlugs($object, $meta, array $config, $slug)
     {
         $dm = $this->getObjectManager();
+        $wrapped = AbstractWrapper::wrap($object, $dm);
         $qb = $dm->createQueryBuilder($config['useObjectClass']);
-        $identifier = $this->extractIdentifier($dm, $object);
-        if ($identifier && !$meta->isIdentifier($config['slug'])) {
+        if (($identifier = $wrapped->getIdentifier()) && !$meta->isIdentifier($config['slug'])) {
             $qb->field($meta->identifier)->notEqual($identifier);
         }
         $qb->field($config['slug'])->equals(new \MongoRegex('/^' . preg_quote($slug, '/') . '/'));
+
+        // use the unique_base to restrict the uniqueness check
+        if ($config['unique'] && isset($config['unique_base'])) {
+            if (is_object($reflectValue = $wrapped->getPropertyValue($config['unique_base']))) {
+                $qb->field($config['unique_base'] . '.$id')->equals(new \MongoId($reflectValue->getId()));
+            } else {
+                $qb->where('/^' . preg_quote($reflectValue, '/') . '/.test(this.' . $config['unique_base'] . ')');
+            }
+        }
+
         $q = $qb->getQuery();
         $q->setHydrate(false);
 
@@ -54,7 +61,9 @@ final class ODM extends BaseAdapterODM implements SluggableAdapter
 
         $q = $dm
             ->createQueryBuilder($config['useObjectClass'])
-            ->field($config['slug'])->equals(new \MongoRegex('/^' . preg_quote($target, '/') . '/'))
+            ->where("function() {
+                return this.{$config['slug']}.indexOf('{$target}') === 0;
+            }")
             ->getQuery()
         ;
         $q->setHydrate(false);
@@ -84,7 +93,7 @@ final class ODM extends BaseAdapterODM implements SluggableAdapter
     public function replaceInverseRelative($object, array $config, $target, $replacement)
     {
         $dm = $this->getObjectManager();
-        $wrapped = AbstractWrapper::wrapp($object, $dm);
+        $wrapped = AbstractWrapper::wrap($object, $dm);
         $meta = $dm->getClassMetadata($config['useObjectClass']);
         $q = $dm
             ->createQueryBuilder($config['useObjectClass'])

@@ -13,9 +13,6 @@ use Gedmo\Mapping\Driver\File,
  * extension.
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable.Mapping.Driver
- * @subpackage Yaml
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Yaml extends File implements Driver
@@ -51,9 +48,12 @@ class Yaml extends File implements Driver
         if (isset($mapping['fields'])) {
             foreach ($mapping['fields'] as $field => $fieldMapping) {
                 if (isset($fieldMapping['gedmo'])) {
-                    if (in_array('translatable', $fieldMapping['gedmo'])) {
+                    if (in_array('translatable', $fieldMapping['gedmo']) || isset($fieldMapping['gedmo']['translatable'])) {
                         // fields cannot be overrided and throws mapping exception
                         $config['fields'][] = $field;
+                        if (isset($fieldMapping['gedmo']['translatable']['fallback'])) {
+                            $config['fallback'][$field] = $fieldMapping['gedmo']['translatable']['fallback'];
+                        }
                     }
                 }
             }
@@ -71,6 +71,6 @@ class Yaml extends File implements Driver
      */
     protected function _loadMappingFile($file)
     {
-        return \Symfony\Component\Yaml\Yaml::load($file);
+        return \Symfony\Component\Yaml\Yaml::parse($file);
     }
 }

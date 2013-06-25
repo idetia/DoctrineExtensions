@@ -12,7 +12,6 @@ use Tool\BaseTestCaseORM;
  * These are mapping extension tests
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Mapping
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -57,21 +56,21 @@ class SluggableMappingTest extends BaseTestCaseORM
         $config = $this->sluggable->getConfiguration($this->em, $meta->name);
 
         $this->assertArrayHasKey('slug', $config['slugs']);
-        $this->assertEquals(1, count($config['slugs']));
+        $this->assertCount(1, $config['slugs']);
         $config = $config['slugs']['slug'];
 
         $this->assertEquals('slug', $config['slug']);
         $this->assertArrayHasKey('style', $config);
         $this->assertEquals('camel', $config['style']);
         $this->assertArrayHasKey('updatable', $config);
-        $this->assertTrue($config['updatable']);
+        $this->assertFalse($config['updatable']);
         $this->assertArrayHasKey('unique', $config);
         $this->assertTrue($config['unique']);
         $this->assertArrayHasKey('separator', $config);
         $this->assertEquals('_', $config['separator']);
 
         $this->assertArrayHasKey('fields', $config);
-        $this->assertEquals(3, count($config['fields']));
+        $this->assertCount(3, $config['fields']);
         $fields = $config['fields'];
 
         $this->assertEquals('title', $fields[0]);

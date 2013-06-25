@@ -2,7 +2,7 @@
 
 namespace Gedmo\Translatable\Hydrator\ORM;
 
-use Gedmo\Translatable\TranslationListener;
+use Gedmo\Translatable\TranslatableListener;
 use Doctrine\ORM\Internal\Hydration\SimpleObjectHydrator as BaseSimpleObjectHydrator;
 
 /**
@@ -12,9 +12,6 @@ use Doctrine\ORM\Internal\Hydration\SimpleObjectHydrator as BaseSimpleObjectHydr
  * of the fields
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable.Hydrator.ORM
- * @subpackage ObjectHydrator
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class SimpleObjectHydrator extends BaseSimpleObjectHydrator
@@ -25,7 +22,7 @@ class SimpleObjectHydrator extends BaseSimpleObjectHydrator
      */
     protected function _hydrateAll()
     {
-        $listener = $this->getTranslationListener();
+        $listener = $this->getTranslatableListener();
         $listener->setSkipOnLoad(true);
         $result = parent::_hydrateAll();
         $listener->setSkipOnLoad(false);
@@ -38,7 +35,7 @@ class SimpleObjectHydrator extends BaseSimpleObjectHydrator
      */
     protected function hydrateAllData()
     {
-        $listener = $this->getTranslationListener();
+        $listener = $this->getTranslatableListener();
         $listener->setSkipOnLoad(true);
         $result = parent::hydrateAllData();
         $listener->setSkipOnLoad(false);
@@ -46,29 +43,29 @@ class SimpleObjectHydrator extends BaseSimpleObjectHydrator
     }
 
     /**
-     * Get the currently used TranslationListener
+     * Get the currently used TranslatableListener
      *
      * @throws \Gedmo\Exception\RuntimeException - if listener is not found
-     * @return TranslationListener
+     * @return TranslatableListener
      */
-    protected function getTranslationListener()
+    protected function getTranslatableListener()
     {
-        $translationListener = null;
+        $translatableListener = null;
         foreach ($this->_em->getEventManager()->getListeners() as $event => $listeners) {
             foreach ($listeners as $hash => $listener) {
-                if ($listener instanceof TranslationListener) {
-                    $translationListener = $listener;
+                if ($listener instanceof TranslatableListener) {
+                    $translatableListener = $listener;
                     break;
                 }
             }
-            if ($translationListener) {
+            if ($translatableListener) {
                 break;
             }
         }
 
-        if (is_null($translationListener)) {
+        if (is_null($translatableListener)) {
             throw new \Gedmo\Exception\RuntimeException('The translation listener could not be found');
         }
-        return $translationListener;
+        return $translatableListener;
     }
 }

@@ -12,7 +12,6 @@ use Doctrine\Common\Util\Debug,
  * These are tests for translatable behavior
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo.Translatable
  * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
@@ -28,7 +27,7 @@ class EntityTranslationTableTest extends BaseTestCaseORM
         parent::setUp();
 
         $evm = new EventManager;
-        $this->translatableListener = new TranslationListener();
+        $this->translatableListener = new TranslatableListener();
         $this->translatableListener->setTranslatableLocale('en_us');
         $this->translatableListener->setDefaultLocale('en_us');
         $evm->addEventSubscriber($this->translatableListener);
@@ -50,7 +49,7 @@ class EntityTranslationTableTest extends BaseTestCaseORM
 
         $translations = $repo->findTranslations($person);
         //As Translate locale and Default locale are the same, no records should be present in translations table
-        $this->assertEquals(count($translations), 0);
+        $this->assertCount(0, $translations);
 
         // test second translations
         $person = $this->em->find(self::PERSON, $person->getId());
@@ -63,13 +62,42 @@ class EntityTranslationTableTest extends BaseTestCaseORM
 
         $translations = $repo->findTranslations($person);
         //Only one translation should be present
-        $this->assertEquals(count($translations), 1);
+        $this->assertCount(1, $translations);
         $this->assertArrayHasKey('de_de', $translations);
 
         $this->assertArrayHasKey('name', $translations['de_de']);
         $this->assertEquals('name in de', $translations['de_de']['name']);
 
         $this->translatableListener->setTranslatableLocale('en_us');
+    }
+
+    /**
+     * Covers issue #438
+     * @test
+     */
+    function shouldPersistDefaultLocaleValue()
+    {
+        $this->translatableListener->setPersistDefaultLocaleTranslation(true);
+        $this->translatableListener->setTranslatableLocale('de');
+        $person = new Person;
+        $person->setName('de');
+
+        $repo = $this->em->getRepository(self::TRANSLATION);
+        $repo
+            ->translate($person, 'name', 'de', 'de')
+            ->translate($person, 'name', 'en_us', 'en_us')
+        ;
+        $this->em->persist($person);
+        $this->em->flush();
+
+        $this->translatableListener->setTranslatableLocale('en_us');
+        $articles = $this->em->createQuery('SELECT p FROM ' . self::PERSON . ' p')->getArrayResult();
+        $this->assertEquals('en_us', $articles[0]['name']);
+        $trans = $this->em->createQuery('SELECT t FROM ' . self::TRANSLATION . ' t')->getArrayResult();
+        $this->assertCount(2, $trans);
+        foreach ($trans as $item) {
+            $this->assertEquals($item['locale'], $item['content']);
+        }
     }
 
     protected function getUsedEntityFixtures()

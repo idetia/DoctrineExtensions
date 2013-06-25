@@ -12,9 +12,6 @@ use Doctrine\ODM\MongoDB\DocumentRepository,
  * to interact with log entries.
  *
  * @author Gediminas Morkevicius <gediminas.morkevicius@gmail.com>
- * @package Gedmo\Loggable\Document\Repository
- * @subpackage LogEntryRepository
- * @link http://www.gediminasm.org
  * @license MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class LogEntryRepository extends DocumentRepository
@@ -90,7 +87,7 @@ class LogEntryRepository extends DocumentRepository
                         if (in_array($field, $fields)) {
                             if ($objectMeta->isSingleValuedAssociation($field)) {
                                 $mapping = $objectMeta->getFieldMapping($field);
-                                $value = $value ? $this->dm->getReference($mapping['targetDocument'], current($value)) : null;
+                                $value = $value ? $this->dm->getReference($mapping['targetDocument'], $value) : null;
                             }
                             $wrapped->setPropertyValue($field, $value);
                             unset($fields[array_search($field, $fields)]);
